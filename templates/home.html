@@ -1,0 +1,47 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">Bienvenido a nuestro Asistente IA</h1>
+            <p class="lead mb-4">Sube tus documentos, imágenes o texto y obtén respuestas inteligentes basadas en tu contenido.</p>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg px-4 me-md-2">Iniciar Sesión</a>
+                <a href="{{ url_for('register') }}" class="btn btn-outline-secondary btn-lg px-4">Registrarse</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-text fs-1 mb-3 text-primary"></i>
+                    <h5 class="card-title">Sube documentos</h5>
+                    <p class="card-text">Sube tus PDFs, documentos de texto y obtén análisis inteligentes.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-image fs-1 mb-3 text-primary"></i>
+                    <h5 class="card-title">Procesa imágenes</h5>
+                    <p class="card-text">Nuestro bot puede analizar el contenido de tus imágenes.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-chat-dots fs-1 mb-3 text-primary"></i>
+                    <h5 class="card-title">Asistente inteligente</h5>
+                    <p class="card-text">Conversa con nuestro asistente IA para resolver tus dudas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

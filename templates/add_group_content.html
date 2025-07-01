@@ -1,0 +1,83 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Añadir Contenido al Grupo</h1>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Nuevo Contenido</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs mb-4" id="contentTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="text-tab" data-bs-toggle="tab" data-bs-target="#text" type="button" role="tab" aria-controls="text" aria-selected="true">Texto</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="pdf-tab" data-bs-toggle="tab" data-bs-target="#pdf" type="button" role="tab" aria-controls="pdf" aria-selected="false">PDF</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="image-tab" data-bs-toggle="tab" data-bs-target="#image" type="button" role="tab" aria-controls="image" aria-selected="false">Imagen</button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content" id="contentTabsContent">
+                        <!-- Contenido de Texto -->
+                        <div class="tab-pane fade show active" id="text" role="tabpanel" aria-labelledby="text-tab">
+                            <form method="post">
+                                <input type="hidden" name="content_type" value="text">
+                                
+                                <div class="mb-3">
+                                    <label for="content_text" class="form-label">Texto</label>
+                                    <textarea class="form-control" id="content_text" name="content_text" rows="6" required></textarea>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">Añadir Texto</button>
+                                    <a href="{{ url_for('group_detail', group_id=group_id) }}" class="btn btn-outline-secondary">Cancelar</a>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Contenido PDF -->
+                        <div class="tab-pane fade" id="pdf" role="tabpanel" aria-labelledby="pdf-tab">
+                            <form method="post" enctype="multipart/form-data">
+                                <input type="hidden" name="content_type" value="pdf">
+                                
+                                <div class="mb-3">
+                                    <label for="content_file" class="form-label">Archivo PDF</label>
+                                    <input class="form-control" type="file" id="content_file" name="content_file" accept="application/pdf" required>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">Subir PDF</button>
+                                    <a href="{{ url_for('group_detail', group_id=group_id) }}" class="btn btn-outline-secondary">Cancelar</a>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <!-- Contenido Imagen -->
+                        <div class="tab-pane fade" id="image" role="tabpanel" aria-labelledby="image-tab">
+                            <form method="post" enctype="multipart/form-data">
+                                <input type="hidden" name="content_type" value="image">
+                                
+                                <div class="mb-3">
+                                    <label for="content_file" class="form-label">Archivo de Imagen</label>
+                                    <input class="form-control" type="file" id="content_file" name="content_file" accept="image/*" required>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">Subir Imagen</button>
+                                    <a href="{{ url_for('group_detail', group_id=group_id) }}" class="btn btn-outline-secondary">Cancelar</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

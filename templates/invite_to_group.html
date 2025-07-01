@@ -1,0 +1,54 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Invitar a {{ group.name }}</h1>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Invitar Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email del Usuario</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                            <div class="form-text">El usuario debe estar registrado en el sistema.</div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Enviar Invitación</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Información</h5>
+                </div>
+                <div class="card-body">
+                    <h5>Proceso de Invitación</h5>
+                    <p>Al invitar a un usuario:</p>
+                    <ol>
+                        <li>El usuario recibirá una notificación en su panel</li>
+                        <li>Su estado será "Pendiente" hasta que lo verifiques</li>
+                        <li>Una vez verificado, podrá acceder al contenido compartido del grupo</li>
+                    </ol>
+                    
+                    <h5>Verificación</h5>
+                    <p>Como administrador, deberás verificar a los miembros antes de que puedan acceder al contenido del grupo. La verificación se realiza a través de {{ group.verification_type }}.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{{ url_for('group_detail', group_id=group.id) }}" class="btn btn-outline-secondary">Volver al Grupo</a>
+    </div>
+</div>
+{% endblock %}

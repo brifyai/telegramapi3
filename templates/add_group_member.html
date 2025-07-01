@@ -1,0 +1,40 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Añadir Miembro al Grupo</h1>
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Información del Nuevo Miembro</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-info-circle-fill me-2"></i> Puedes añadir un miembro por su correo electrónico o número de teléfono. Si el usuario ya está registrado, se le añadirá directamente al grupo. Si no, se creará una invitación pendiente.
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Correo Electrónico</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Número de Teléfono</label>
+                            <input type="tel" class="form-control" id="phone" name="phone">
+                            <div class="form-text">Formato: +código país número (ej. +34612345678)</div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">Añadir Miembro</button>
+                            <a href="{{ url_for('group_detail', group_id=group_id) }}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

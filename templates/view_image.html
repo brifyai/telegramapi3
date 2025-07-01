@@ -1,0 +1,26 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">{{ filename }}</h1>
+    
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Visor de Imagen</h5>
+        </div>
+        <div class="card-body text-center">
+            <!-- Mostrar la imagen real desde Supabase Storage -->
+            <img src="{{ file_url }}" alt="{{ filename }}" class="img-fluid mb-3 rounded" style="max-height: 500px;">
+            
+            <!-- Botón de descarga -->
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('download_group_content', group_id=content.group_id, content_id=content.id) }}" class="btn btn-primary"><i class="bi bi-download me-2"></i>Descargar Imagen</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="{{ url_for('group_detail', group_id=content.group_id) }}" class="btn btn-outline-secondary">Volver al Grupo</a>
+    </div>
+</div>
+{% endblock %}

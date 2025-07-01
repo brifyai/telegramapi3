@@ -1,0 +1,105 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Panel de Usuario</h1>
+    
+    <div class="row">
+        <!-- Información del usuario -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Información de Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    {% if user.telegram_id %}
+                    <p><strong>ID de Telegram:</strong> {{ user.telegram_id }}</p>
+                    {% else %}
+                    <p><strong>ID de Telegram:</strong> No vinculado</p>
+                    {% endif %}
+                    <p><strong>Fecha de registro:</strong> {{ user.created_at.split('T')[0] }}</p>
+                    <div class="d-grid">
+                        <a href="{{ url_for('profile') }}" class="btn btn-outline-primary">Editar Perfil</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información del plan -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Plan Actual</h5>
+                </div>
+                <div class="card-body">
+                    {% if plan_active %}
+                        <h4>{{ user.current_plan|title }} Plan</h4>
+                        <p><strong>Estado:</strong> <span class="badge bg-success">Activo</span></p>
+                        <p><strong>Expira:</strong> {{ user.plan_expiration.split('T')[0] }}</p>
+                    {% else %}
+                        <h4>Sin plan activo</h4>
+                        <p>No tienes un plan activo actualmente.</p>
+                    {% endif %}
+                    <div class="d-grid">
+                        <a href="{{ url_for('plans') }}" class="btn btn-primary">Ver Planes</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Almacenamiento -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Almacenamiento</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6>Espacio utilizado: {{ storage_used|round(2) }} GB de {{ storage_limit }} GB</h6>
+                        <div class="progress">
+                            {% set percentage = (storage_used / storage_limit * 100) if storage_limit > 0 else 0 %}
+                            <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%" 
+                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ percentage|round }}%
+                            </div>
+                        </div>
+                    </div>
+                    <p>Puedes subir archivos a través de nuestro bot de Telegram.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Accesos rápidos -->
+    <div class="row mt-3">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('plans') }}" class="btn btn-outline-primary">Comprar Plan</a>
+                        <a href="{{ url_for('orders') }}" class="btn btn-outline-primary">Ver Historial de Órdenes</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Bot de Telegram</h5>
+                </div>
+                <div class="card-body">
+                    <p>Conecta con nuestro bot de Telegram para subir archivos y recibir asistencia.</p>
+                    <div class="d-grid">
+                        <a href="https://t.me/tu_bot_username" target="_blank" class="btn btn-primary">Abrir Bot de Telegram</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

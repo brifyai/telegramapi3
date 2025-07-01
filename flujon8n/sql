@@ -1,0 +1,149 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.ai_interactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  file_id uuid,
+  summary text,
+  ai_response text,
+  created_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT ai_interactions_pkey PRIMARY KEY (id),
+  CONSTRAINT ai_interactions_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(id),
+  CONSTRAINT ai_interactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.documents (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title character varying,
+  content text,
+  file_path character varying,
+  file_type character varying,
+  file_size bigint,
+  embedding USER-DEFINED,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  metadata jsonb,
+  CONSTRAINT documents_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.files (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  filename text NOT NULL,
+  file_url text NOT NULL,
+  file_type text,
+  uploaded_at timestamp without time zone DEFAULT now(),
+  size_bytes bigint,
+  ai_summary text,
+  processed boolean DEFAULT false,
+  telegram_id bigint,
+  CONSTRAINT files_pkey PRIMARY KEY (id),
+  CONSTRAINT files_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.group_contents (
+  id uuid NOT NULL,
+  group_id uuid,
+  added_by uuid,
+  content_type text,
+  content_data jsonb,
+  file_size_bytes integer,
+  created_at timestamp with time zone DEFAULT now(),
+  file_path text,
+  file_type text,
+  file text,
+  CONSTRAINT group_contents_pkey PRIMARY KEY (id),
+  CONSTRAINT group_contents_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id),
+  CONSTRAINT group_contents_added_by_fkey FOREIGN KEY (added_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.group_documents (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  group_id uuid,
+  document_id uuid,
+  added_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT group_documents_pkey PRIMARY KEY (id),
+  CONSTRAINT group_documents_added_by_fkey FOREIGN KEY (added_by) REFERENCES public.users(id),
+  CONSTRAINT group_documents_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id),
+  CONSTRAINT group_documents_document_id_fkey FOREIGN KEY (document_id) REFERENCES public.documents(id)
+);
+CREATE TABLE public.group_invitations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  group_id uuid,
+  user_id uuid,
+  invited_by uuid,
+  email character varying,
+  phone character varying,
+  verification_code character varying,
+  verification_type character varying NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  expires_at timestamp with time zone,
+  status character varying DEFAULT 'pending'::character varying,
+  CONSTRAINT group_invitations_pkey PRIMARY KEY (id),
+  CONSTRAINT group_invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id),
+  CONSTRAINT group_invitations_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id),
+  CONSTRAINT group_invitations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.group_members (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  group_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  is_admin boolean NOT NULL DEFAULT false,
+  status text NOT NULL DEFAULT 'pending'::text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  joined_at timestamp without time zone,
+  CONSTRAINT group_members_pkey PRIMARY KEY (id),
+  CONSTRAINT group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id)
+);
+CREATE TABLE public.groups (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name character varying NOT NULL,
+  admin_id uuid,
+  verification_type character varying NOT NULL DEFAULT 'phone'::character varying,
+  created_at timestamp with time zone DEFAULT now(),
+  is_active boolean DEFAULT true,
+  shared_storage_bytes bigint DEFAULT 0,
+  is_personal boolean DEFAULT false,
+  description text,
+  CONSTRAINT groups_pkey PRIMARY KEY (id),
+  CONSTRAINT groups_admin_id_fkey FOREIGN KEY (admin_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.payments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  plan_id uuid,
+  amount_usd numeric NOT NULL,
+  payment_status text CHECK (payment_status = ANY (ARRAY['paid'::text, 'failed'::text, 'pending'::text])),
+  payment_provider text,
+  payment_ref text,
+  paid_at timestamp without time zone DEFAULT now(),
+  CONSTRAINT payments_pkey PRIMARY KEY (id),
+  CONSTRAINT payments_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.plans(id),
+  CONSTRAINT payments_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.plans (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  storage_limit_bytes bigint NOT NULL,
+  price_usd numeric NOT NULL,
+  duration_days integer NOT NULL,
+  name_es text,
+  plan_code text,
+  CONSTRAINT plans_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.users (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  telegram_id bigint UNIQUE,
+  email text UNIQUE,
+  name text,
+  created_at timestamp without time zone DEFAULT now(),
+  is_active boolean DEFAULT true,
+  current_plan_id uuid,
+  plan_expiration timestamp without time zone,
+  used_storage_bytes bigint DEFAULT 0,
+  registered_via text DEFAULT 'telegram'::text,
+  password_hash text,
+  salt text,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_current_plan_id_fkey FOREIGN KEY (current_plan_id) REFERENCES public.plans(id)
+);

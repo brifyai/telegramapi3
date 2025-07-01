@@ -1,0 +1,50 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<h1>Gestión de Usuarios</h1>
+
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Lista de Usuarios</h5>
+        <a href="{{ url_for('add_user') }}" class="btn btn-primary btn-sm">Añadir Usuario</a>
+    </div>
+    <div class="card-body">
+        {% if users %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Nombre</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_id, user_data in users.items() %}
+                    <tr>
+                        <td>{{ user_id }}</td>
+                        <td>{{ user_data.username or 'Sin nombre de usuario' }}</td>
+                        <td>{{ user_data.first_name or 'Sin nombre' }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if user_data.status == 'active' else 'danger' }}">
+                                {{ user_data.status or 'active' }}
+                            </span>
+                        </td>
+                        <td>
+                            <form action="{{ url_for('remove_user', user_id=user_id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar este usuario?')">
+                                    Eliminar
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-center">No hay usuarios registrados.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

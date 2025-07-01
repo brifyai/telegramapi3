@@ -1,0 +1,43 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Perfil de Usuario</h1>
+    
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Información Personal</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div class="mb-3">
+                    <label for="email" class="form-label">Correo Electrónico</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" readonly>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="name" class="form-label">Nombre</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ user.name }}">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="telegram_id" class="form-label">ID de Telegram</label>
+                    <input type="text" class="form-control" id="telegram_id" name="telegram_id" value="{{ user.telegram_id }}" readonly>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="new_password" class="form-label">Nueva Contraseña (dejar en blanco para mantener la actual)</label>
+                    <input type="password" class="form-control" id="new_password" name="new_password">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="confirm_password" class="form-label">Confirmar Nueva Contraseña</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Actualizar Perfil</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

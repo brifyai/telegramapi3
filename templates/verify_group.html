@@ -1,0 +1,30 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Verificar Membresía de Grupo</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <i class="bi bi-info-circle-fill me-2"></i> Has sido invitado a unirte a un grupo. Para completar el proceso, haz clic en el botón de verificación.
+                    </div>
+                    
+                    <form method="post">
+                        <div class="mb-3 text-center">
+                            <p>Código de verificación: <strong>{{ verification_code }}</strong></p>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Verificar y Unirme al Grupo</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

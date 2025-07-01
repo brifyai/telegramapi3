@@ -1,0 +1,151 @@
+{
+    "1151207547": {
+        "telegram_id": 1151207547,
+        "name": "",
+        "email": "",
+        "created_at": "2025-06-05T11:36:02.199679",
+        "is_active": true,
+        "used_storage_bytes": 0,
+        "registered_via": "telegram"
+    },
+    "c8bb6a4c-f655-4f1e-a38d-2069ca5b8966": {
+        "email": "s.godoy.rubio@gmail.com",
+        "password_hash": "0fc81f8ac23ad4f4f637373c06c65b1f8075660b612296bd3781f160d903eb30",
+        "salt": "4819b1ed864f97faf6454e038ee2f7f71d84dfb6561aefe8cbba935b409ecdd0",
+        "created_at": "2025-06-01T21:27:33.538836",
+        "is_active": true,
+        "used_storage_bytes": 0,
+        "registered_via": "web",
+        "telegram_id": 1151207547
+    },
+    "26697b3c-8020-4929-b9a2-0964593304d7": {
+        "email": "s.godoy.rubio@gmail.com",
+        "password_hash": "dd2fe1093f2fcae709eca81266785d85e3915503ba7e8de3a8c957be1eb38c96",
+        "salt": "6edd28d1d8f6e0e37375b4d8c44bafe26f01ee81b270114cb8cdef8b6e17e9a2",
+        "created_at": "2025-06-03T19:55:37.518255",
+        "is_active": true,
+        "used_storage_bytes": 0,
+        "registered_via": "web",
+        "telegram_id": 1151207547
+    },
+    "5926ed28-e571-43c8-9227-c9107060f089": {
+        "email": "s.godoy.rubio@gmail.com",
+        "password_hash": "1ddb23608a1d1bb6913911376e3fc596ad172e8472e4d8d010d9cd4d36c74857",
+        "salt": "ef60d7da41d082d79755d8947130b597503e0410e9a990d01078f220b76092a7",
+        "created_at": "2025-06-05T11:38:25.824208",
+        "is_active": true,
+        "used_storage_bytes": 0,
+        "registered_via": "web",
+        "telegram_id": 1151207547,
+        "orders": [
+            {
+                "order_id": "6c146260-258b-4342-892c-d774e695be25",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-05T18:43:09.585653",
+                "status": "completed"
+            },
+            {
+                "order_id": "ffb25890-b8c2-42a9-9396-97e6e44d4617",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-05T18:43:36.713769",
+                "status": "completed"
+            },
+            {
+                "order_id": "c95bb8e1-1e69-41ed-854b-21cd614a03ee",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-05T18:45:10.552859",
+                "status": "completed"
+            }
+        ]
+    },
+    "fb99cce8-7776-49d4-85fe-1b72e5b8d5db": {
+        "email": "s.godoy.rubio@gmail.com",
+        "password_hash": "4b102619bc6928528e176c6f3a2fb3cc5b92885e9b834d82f2410c04d1c87e08",
+        "salt": "5656d7685d67eee30309d800e82059b266bc38b1f337bcfd5ef38af880a1aed6",
+        "created_at": "2025-06-05T22:37:14.396414",
+        "is_active": true,
+        "used_storage_bytes": 0,
+        "registered_via": "web",
+        "telegram_id": 1151207547,
+        "orders": [
+            {
+                "order_id": "76231596-6ad4-4bc2-ba5a-c8aac333fbe5",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-05T22:37:50.350321",
+                "status": "completed"
+            },
+            {
+                "order_id": "51004ce3-1504-4e86-9894-89216508399c",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-05T22:38:09.706179",
+                "status": "completed"
+            },
+            {
+                "order_id": "2a11db5b-cd84-424a-a37c-81f92fedca66",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-05T22:39:22.040663",
+                "status": "completed"
+            },
+            {
+                "order_id": "5f1d65d2-36b3-4278-a20d-ffd3627a9e86",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-05T22:40:06.040417",
+                "status": "completed"
+            },
+            {
+                "order_id": "1860d165-f020-4dff-9cd0-7019aa9b5339",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-06T00:17:55.189339",
+                "status": "completed"
+            }
+        ]
+    },
+    "850cc3b6-8b21-4a7a-810b-1cc4df3eba79": {
+        "email": "s.godoy.rubio@gmail.com",
+        "password_hash": "8af322de34634d47866582b038a19d9064915186d7b488efb63583485cd8268f",
+        "salt": "77b0d9a5abf80758389dd18a61b1a6ddd1950f76307d4e76db908c8b33b87e76",
+        "created_at": "2025-06-06T00:28:07.308935",
+        "is_active": true,
+        "used_storage_bytes": 0,
+        "registered_via": "web",
+        "telegram_id": 1151207547,
+        "orders": [
+            {
+                "order_id": "c3ff0af6-f635-453f-8461-32c69182a006",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-06T00:28:28.975506",
+                "status": "completed"
+            },
+            {
+                "order_id": "833e28bd-96a7-4f20-a847-d756ac3ca944",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-06T00:31:40.375129",
+                "status": "completed"
+            },
+            {
+                "order_id": "2cb8f21f-be4d-4182-858b-782c6a85f38a",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-06T00:36:45.860332",
+                "status": "completed"
+            },
+            {
+                "order_id": "71856c2d-ef1c-4473-9271-8670ba55d4a7",
+                "plan_id": "lite_monthly",
+                "amount": 2490,
+                "date": "2025-06-06T00:57:09.186764",
+                "status": "completed"
+            }
+        ]
+    }
+}
