@@ -1028,5 +1028,6 @@ if __name__ == '__main__':
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
     
-    app.run(debug=True, port=5000)
-    
+    # Configuración para entornos de producción como Heroku
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
