@@ -8,6 +8,10 @@ import datetime
 import requests
 from dotenv import load_dotenv
 import logging
+import tempfile
+from google_drive_service import GoogleDriveService
+from embeddings_service import EmbeddingsService
+
 load_dotenv()
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +30,18 @@ class UserDatabase:
         self.db_file = db_file
         self.users = {}
         self.load_users()
+        
+        # Inicializar servicios de Google Drive y embeddings
+        self.drive_service = GoogleDriveService(
+            supabase_url=SUPABASE_URL,
+            supabase_key=SUPABASE_KEY,
+            encryption_key=os.getenv('ENCRYPTION_KEY')
+        )
+        
+        self.embeddings_service = EmbeddingsService(
+            model_name=os.getenv('EMBEDDING_MODEL', 'all-MiniLM-L6-v2'),
+            use_openai=os.getenv('USE_OPENAI_EMBEDDINGS', 'false').lower() == 'true'
+        )
     
     def load_users(self):
         """Cargar usuarios desde el archivo JSON (para compatibilidad)"""
@@ -382,6 +398,12 @@ class UserDatabase:
         
         return False, "Usuario no encontrado"
     
+    def _get_mime_type(self, filename):
+        """Obtener tipo MIME basado en la extensión del archivo"""
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(filename)
+        return mime_type or 'application/octet-stream'
+    
     def update_user_plan(self, user_id, plan_id, expiration_days=30):
         """Actualizar el plan de un usuario en Supabase"""
         headers = self._get_supabase_headers()
@@ -704,7 +726,7 @@ class UserDatabase:
         
         return False
     def upload_and_vectorize_file(self, group_id, user_id, file, content_type):
-        """Subir archivo, procesarlo y vectorizarlo para IA"""
+        """Subir archivo a Google Drive, procesarlo y vectorizarlo para IA"""
         headers = self._get_supabase_headers()
         
         # Verificar que el usuario es administrador del grupo
@@ -717,161 +739,165 @@ class UserDatabase:
         if admin_check.status_code != 200 or not admin_check.json():
             return False, "Solo los administradores pueden subir contenido"
         
-        # 1. Subir archivo a Supabase Storage
+        # Verificar que el usuario tenga Google Drive conectado
+        if not self.drive_service.is_user_connected(user_id):
+            return False, "Usuario no tiene Google Drive conectado. Debe autorizar primero."
+        
         file_name = file.filename
-        file_path = f"groups/{group_id}/{file_name}"
         file_size = len(file.read())
         file.seek(0)  # Reiniciar puntero del archivo
         
-        # Subir archivo a Supabase Storage (bucket público "telegrambucket")
-        storage_url = f"{SUPABASE_URL}/storage/v1/object/telegrambucket/{file_path}"
+        # Crear archivo temporal para procesamiento
+        temp_file = tempfile.NamedTemporaryFile(delete=False)
+        temp_file_path = temp_file.name
         
-        # Preparar headers para la subida de archivos
-        upload_headers = headers.copy()
-        # Eliminar Content-Type para que requests lo establezca automáticamente con el boundary correcto
-        if 'Content-Type' in upload_headers:
-            del upload_headers['Content-Type']
-        
-        # Subir el archivo
-        files = {
-            'file': (file_name, file, 'application/octet-stream')
-        }
-        
-        upload_response = requests.post(
-            storage_url,
-            headers=upload_headers,
-            files=files
-        )
-        
-        print(f"Status code upload: {upload_response.status_code}")
-        print(f"Response upload: {upload_response.text}")
-        
-        if upload_response.status_code not in [200, 201]:
-            return False, f"Error al subir archivo: {upload_response.text}"
-        
-        # Generar URL pública para el archivo
-        file_url = f"{SUPABASE_URL}/storage/v1/object/public/telegrambucket/{file_path}"
-        # Limpiar caracteres problemáticos
-        file_url = file_url.replace('`', '').strip()
-        
-        # 2. Procesar el contenido según el tipo
-        text_content = ""
-        if content_type == 'text':
-            file.seek(0)  # Reiniciar puntero del archivo
-            text_content = file.read().decode('utf-8')
-        elif content_type == 'pdf':
-            # Aquí usarías una biblioteca como PyPDF2 o pdfminer para extraer texto
-            # Por ahora, simulamos
-            text_content = f"Contenido extraído del PDF {file_name}"
-        elif content_type == 'image':
-            # Para imágenes, podríamos usar OCR en un entorno real
-            # Por ahora, simplemente usamos un texto descriptivo
-            text_content = f"Imagen: {file_name}"
-        
-        import numpy as np
-        import json
-        
-        # Generar un vector aleatorio y asegurarnos de que no tenga valores NaN o infinitos
-        embedding_array = np.random.rand(1536)  # Ajusta esta dimensión si es necesario
-        
-        # Convertir a lista de Python y redondear a 6 decimales para evitar problemas de precisión
-        embedding = [float(round(x, 6)) for x in embedding_array.tolist()]
-        
-        # Verificar que no haya valores NaN o infinitos
-        embedding = [0.0 if np.isnan(x) or np.isinf(x) else x for x in embedding]
-        
-        # Asegurarse de que metadata sea un objeto JSON válido
-        metadata = {
-            "filename": file_name,
-            "content_type": content_type,
-            "file_size": file_size,
-            "file_url": file_url
-        }
-        
-        # Validar que metadata sea serializable
         try:
-            json.dumps(metadata)
-        except (TypeError, OverflowError) as e:
-            return False, f"Error en formato de metadata: {str(e)}"
-        
-        # 4. Guardar documento en la tabla documents
-        document = {
-            "title": file_name,  
-            "content": text_content,
-            "file_type": content_type,  
-            "file_path": file_url,  
-            "file_size": file_size,  
-            "metadata": metadata,
-            "embedding": embedding
-        }
-        
-        # Insertar en Supabase
-        document_response = requests.post(
-            f"{SUPABASE_URL}/rest/v1/documents",
-            headers=headers,
-            json=document
-        )
-        
-        # Imprimir información de depuración
-        print(f"Status code document: {document_response.status_code}")
-        print(f"Response document: {document_response.text}")
-        
-        if document_response.status_code != 201:
-            return False, f"Error al guardar documento vectorizado: {document_response.text}"
-        
-        # Obtener ID del documento creado
-        document_id = None
-        try:
-            # Intentar obtener el ID del documento de la respuesta
-            document_id = json.loads(document_response.text).get('id')
-        except:
-            # Si no se puede obtener de la respuesta, buscar por contenido
-            get_doc_response = requests.get(
-                f"{SUPABASE_URL}/rest/v1/documents",
-                headers=headers,
-                params={"content": f"eq.{text_content}"}
+            # Escribir contenido del archivo al archivo temporal
+            file.seek(0)
+            temp_file.write(file.read())
+            temp_file.close()
+            
+            # 1. Subir archivo a Google Drive del usuario
+            logging.info(f"Subiendo archivo {file_name} a Google Drive...")
+            google_file_id = self.drive_service.upload_file(
+                user_id=user_id,
+                file_path=temp_file_path,
+                file_name=file_name,
+                mime_type=self._get_mime_type(file_name)
             )
             
-            if get_doc_response.status_code == 200 and get_doc_response.json():
-                document_id = get_doc_response.json()[0]['id']
-            else:
-                return False, "Error al obtener ID del documento"
-        
-        # 5. Relacionar documento con el grupo
-        group_document = {
-            "group_id": group_id,
-            "document_id": document_id,
-            "added_by": user_id
-        }
-        
-        group_doc_response = requests.post(
-            f"{SUPABASE_URL}/rest/v1/group_documents",
-            headers=headers,
-            json=group_document
-        )
-        
-        if group_doc_response.status_code != 201:
-            return False, "Error al relacionar documento con grupo"
-        
-        # 6. Registrar el contenido en group_contents para compatibilidad
-        content_data = {
-            "filename": file_name,
-            "file_url": file_url,
-            "document_id": document_id,
-            "file_path": file_path,  # Añadir file_path
-            "file_type": content_type,  # Añadir file_type
-            "file": file_name  # Añadir file (usando el nombre del archivo)
-        }
-        
-        success, content_id = self.add_group_content(group_id, user_id, content_type, content_data, file_size)
-        
-        if not success:
-            return False, "Error al registrar contenido en el grupo"
-        
-        # 7. Actualizar almacenamiento usado por el grupo
-        self.update_group_storage(group_id, file_size)
-        
-        return True, content_id
+            if not google_file_id:
+                return False, "Error al subir archivo a Google Drive"
+            
+            # 2. Procesar y extraer texto del archivo
+            logging.info(f"Procesando contenido del archivo {file_name}...")
+            embedding_result = self.embeddings_service.generate_embedding_from_file(
+                temp_file_path, content_type
+            )
+            
+            text_content = embedding_result['text']
+            embedding = embedding_result['embedding']
+            processing_metadata = embedding_result['metadata']
+            
+            # Validar embedding
+            if not self.embeddings_service.validate_embedding(embedding):
+                logging.warning(f"Embedding inválido para {file_name}, usando embedding de ceros")
+                embedding = self.embeddings_service._get_zero_embedding()
+            
+            # 3. Preparar metadata completa
+            metadata = {
+                "filename": file_name,
+                "content_type": content_type,
+                "file_size": file_size,
+                "google_drive_file_id": google_file_id,
+                "processing_metadata": processing_metadata,
+                "extraction_success": bool(text_content.strip())
+            }
+            
+            # Validar que metadata sea serializable
+            try:
+                json.dumps(metadata)
+            except (TypeError, OverflowError) as e:
+                return False, f"Error en formato de metadata: {str(e)}"
+            
+            # 4. Guardar documento en la tabla documents con nuevos campos
+            document = {
+                "title": file_name,
+                "content": text_content,  # Contenido extraído (deprecated, usar text_content)
+                "text_content": text_content,  # Nuevo campo para contenido
+                "file_type": content_type,
+                "file_path": "",  # Ya no usamos Supabase Storage
+                "file_size": file_size,
+                "metadata": metadata,
+                "embedding": embedding,
+                "google_drive_file_id": google_file_id,
+                "original_file_name": file_name,
+                "mime_type": self._get_mime_type(file_name),
+                "embedding_model": processing_metadata.get('embedding_model', 'all-MiniLM-L6-v2'),
+                "processing_status": "completed"
+            }
+            
+            # Insertar en Supabase
+            document_response = requests.post(
+                f"{SUPABASE_URL}/rest/v1/documents",
+                headers=headers,
+                json=document
+            )
+            
+            logging.info(f"Status code document: {document_response.status_code}")
+            
+            if document_response.status_code != 201:
+                # Si falla guardar en base de datos, eliminar archivo de Drive
+                self.drive_service.delete_file(user_id, google_file_id)
+                return False, f"Error al guardar documento vectorizado: {document_response.text}"
+            
+            # Obtener ID del documento creado
+            document_id = None
+            try:
+                # Intentar obtener el ID del documento de la respuesta
+                response_data = json.loads(document_response.text)
+                if isinstance(response_data, list) and len(response_data) > 0:
+                    document_id = response_data[0]['id']
+                else:
+                    document_id = response_data.get('id')
+            except:
+                # Si no se puede obtener de la respuesta, buscar por google_drive_file_id
+                get_doc_response = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/documents",
+                    headers=headers,
+                    params={"google_drive_file_id": f"eq.{google_file_id}"}
+                )
+                
+                if get_doc_response.status_code == 200 and get_doc_response.json():
+                    document_id = get_doc_response.json()[0]['id']
+                else:
+                    return False, "Error al obtener ID del documento"
+            
+            # 5. Relacionar documento con el grupo
+            group_document = {
+                "group_id": group_id,
+                "document_id": document_id,
+                "added_by": user_id
+            }
+            
+            group_doc_response = requests.post(
+                f"{SUPABASE_URL}/rest/v1/group_documents",
+                headers=headers,
+                json=group_document
+            )
+            
+            if group_doc_response.status_code != 201:
+                return False, "Error al relacionar documento con grupo"
+            
+            # 6. Registrar el contenido en group_contents para compatibilidad
+            content_data = {
+                "filename": file_name,
+                "file_url": "",  # Ya no usamos URLs de Supabase
+                "document_id": document_id,
+                "file_path": "",  # Ya no usamos file_path de Supabase
+                "file_type": content_type,
+                "file": file_name,
+                "google_drive_file_id": google_file_id
+            }
+            
+            success, content_id = self.add_group_content(group_id, user_id, content_type, content_data, file_size)
+            
+            if not success:
+                return False, "Error al registrar contenido en el grupo"
+            
+            # 7. Actualizar almacenamiento usado por el grupo
+            self.update_group_storage(group_id, file_size)
+            
+            logging.info(f"Archivo {file_name} procesado exitosamente. Document ID: {document_id}")
+            return True, document_id
+            
+        except Exception as e:
+            logging.error(f"Error procesando archivo {file_name}: {str(e)}")
+            return False, f"Error procesando archivo: {str(e)}"
+        finally:
+            # Limpiar archivo temporal
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
     def get_group_contents(self, group_id, user_id):
         """Obtener contenidos de un grupo (solo para miembros verificados)"""
         headers = self._get_supabase_headers()
@@ -1160,6 +1186,292 @@ class UserDatabase:
             logging.error(f"Error obteniendo documentos del usuario: {e}")
             print(f"Debug - Exception: {e}")
             return False, []
+    
+    def search_documents_by_similarity(self, user_id, query_text, threshold=0.7, limit=5):
+        """Buscar documentos similares usando embeddings vectoriales"""
+        headers = self._get_supabase_headers()
+        
+        try:
+            # Obtener UUID del usuario
+            user_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/users",
+                headers=headers,
+                params={"telegram_id": f"eq.{user_id}"}
+            )
+            
+            if user_response.status_code != 200 or not user_response.json():
+                return False, []
+            
+            user_uuid = user_response.json()[0]['id']
+            
+            # Generar embedding de la consulta
+            query_embedding = self.embeddings_service.generate_query_embedding(query_text)
+            
+            # Buscar el grupo personal del usuario
+            group_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/groups",
+                headers=headers,
+                params={"name": f"eq.Personal_{user_id}", "admin_id": f"eq.{user_uuid}"}
+            )
+            
+            if group_response.status_code != 200 or not group_response.json():
+                return False, []
+            
+            group_id = group_response.json()[0]['id']
+            
+            # Obtener documentos del grupo con sus embeddings
+            documents_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/group_documents",
+                headers=headers,
+                params={
+                    "group_id": f"eq.{group_id}",
+                    "select": "id,created_at,documents(id,title,text_content,file_type,google_drive_file_id,file_size,metadata,embedding,created_at)",
+                    "limit": "100"  # Obtener más documentos para filtrar por similaridad
+                }
+            )
+            
+            if documents_response.status_code != 200:
+                return False, []
+            
+            group_docs = documents_response.json()
+            document_embeddings = []
+            
+            for group_doc in group_docs:
+                if group_doc.get('documents') and isinstance(group_doc['documents'], dict):
+                    doc = group_doc['documents']
+                    if doc.get('embedding') and doc.get('id'):
+                        document_embeddings.append({
+                            'id': doc['id'],
+                            'title': doc.get('title', ''),
+                            'text_content': doc.get('text_content', ''),
+                            'file_type': doc.get('file_type', ''),
+                            'google_drive_file_id': doc.get('google_drive_file_id', ''),
+                            'file_size': doc.get('file_size', 0),
+                            'metadata': doc.get('metadata', {}),
+                            'embedding': doc['embedding'],
+                            'created_at': doc.get('created_at', '')
+                        })
+            
+            # Usar el servicio de embeddings para encontrar documentos similares
+            similar_docs = self.embeddings_service.find_similar_documents(
+                query_embedding=query_embedding,
+                document_embeddings=document_embeddings,
+                threshold=threshold,
+                limit=limit
+            )
+            
+            return True, similar_docs
+            
+        except Exception as e:
+            logging.error(f"Error en búsqueda por similaridad: {e}")
+            return False, []
+    
+    def get_document_content_from_drive(self, user_id, document_id):
+        """Obtener contenido completo de documento desde Google Drive"""
+        headers = self._get_supabase_headers()
+        
+        try:
+            # Obtener información del documento
+            doc_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/documents",
+                headers=headers,
+                params={"id": f"eq.{document_id}"}
+            )
+            
+            if doc_response.status_code != 200 or not doc_response.json():
+                return False, None
+            
+            document = doc_response.json()[0]
+            google_file_id = document.get('google_drive_file_id')
+            
+            if not google_file_id:
+                return False, "Documento no tiene archivo en Google Drive"
+            
+            # Obtener UUID del usuario
+            user_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/users",
+                headers=headers,
+                params={"telegram_id": f"eq.{user_id}"}
+            )
+            
+            if user_response.status_code != 200 or not user_response.json():
+                return False, "Usuario no encontrado"
+            
+            user_uuid = user_response.json()[0]['id']
+            
+            # Descargar archivo de Google Drive
+            file_content = self.drive_service.download_file(user_uuid, google_file_id)
+            
+            if file_content:
+                return True, {
+                    'document_info': document,
+                    'file_content': file_content,
+                    'filename': document.get('original_file_name', document.get('title', '')),
+                    'mime_type': document.get('mime_type', 'application/octet-stream')
+                }
+            else:
+                return False, "Error al descargar archivo de Google Drive"
+                
+        except Exception as e:
+            logging.error(f"Error obteniendo contenido desde Drive: {e}")
+            return False, f"Error: {str(e)}"
+    
+    def create_document_from_drive_file(self, user_id, drive_file_id, group_id=None):
+        """Crear documento en base de datos desde archivo existente en Google Drive"""
+        headers = self._get_supabase_headers()
+        
+        try:
+            # Obtener UUID del usuario
+            user_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/users",
+                headers=headers,
+                params={"telegram_id": f"eq.{user_id}"}
+            )
+            
+            if user_response.status_code != 200 or not user_response.json():
+                return False, "Usuario no encontrado"
+            
+            user_uuid = user_response.json()[0]['id']
+            
+            # Obtener información del archivo de Google Drive
+            file_info = self.drive_service.get_file_info(user_uuid, drive_file_id)
+            
+            if not file_info:
+                return False, "Archivo no encontrado en Google Drive"
+            
+            # Descargar archivo temporalmente para procesamiento
+            file_content = self.drive_service.download_file(user_uuid, drive_file_id)
+            
+            if not file_content:
+                return False, "Error al descargar archivo para procesamiento"
+            
+            # Crear archivo temporal para procesamiento
+            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            temp_file_path = temp_file.name
+            
+            try:
+                temp_file.write(file_content)
+                temp_file.close()
+                
+                # Determinar tipo de contenido
+                file_name = file_info['name']
+                mime_type = file_info.get('mimeType', 'application/octet-stream')
+                content_type = self._determine_content_type(file_name, mime_type)
+                
+                # Procesar y extraer texto del archivo
+                embedding_result = self.embeddings_service.generate_embedding_from_file(
+                    temp_file_path, content_type
+                )
+                
+                text_content = embedding_result['text']
+                embedding = embedding_result['embedding']
+                processing_metadata = embedding_result['metadata']
+                
+                # Validar embedding
+                if not self.embeddings_service.validate_embedding(embedding):
+                    logging.warning(f"Embedding inválido para {file_name}, usando embedding de ceros")
+                    embedding = self.embeddings_service._get_zero_embedding()
+                
+                # Preparar metadata
+                metadata = {
+                    "filename": file_name,
+                    "content_type": content_type,
+                    "file_size": int(file_info.get('size', 0)),
+                    "google_drive_file_id": drive_file_id,
+                    "processing_metadata": processing_metadata,
+                    "extraction_success": bool(text_content.strip()),
+                    "drive_created_time": file_info.get('createdTime', ''),
+                    "drive_modified_time": file_info.get('modifiedTime', '')
+                }
+                
+                # Guardar documento en base de datos
+                document = {
+                    "title": file_name,
+                    "content": text_content,
+                    "text_content": text_content,
+                    "file_type": content_type,
+                    "file_path": "",
+                    "file_size": int(file_info.get('size', 0)),
+                    "metadata": metadata,
+                    "embedding": embedding,
+                    "google_drive_file_id": drive_file_id,
+                    "original_file_name": file_name,
+                    "mime_type": mime_type,
+                    "embedding_model": processing_metadata.get('embedding_model', 'all-MiniLM-L6-v2'),
+                    "processing_status": "completed"
+                }
+                
+                # Insertar en Supabase
+                document_response = requests.post(
+                    f"{SUPABASE_URL}/rest/v1/documents",
+                    headers=headers,
+                    json=document
+                )
+                
+                if document_response.status_code != 201:
+                    return False, f"Error al guardar documento: {document_response.text}"
+                
+                # Obtener ID del documento
+                response_data = json.loads(document_response.text)
+                if isinstance(response_data, list) and len(response_data) > 0:
+                    document_id = response_data[0]['id']
+                else:
+                    document_id = response_data.get('id')
+                
+                # Si no se especifica grupo, usar grupo personal
+                if not group_id:
+                    personal_group_response = requests.get(
+                        f"{SUPABASE_URL}/rest/v1/groups",
+                        headers=headers,
+                        params={"name": f"eq.Personal_{user_id}", "admin_id": f"eq.{user_uuid}"}
+                    )
+                    
+                    if personal_group_response.status_code == 200 and personal_group_response.json():
+                        group_id = personal_group_response.json()[0]['id']
+                    else:
+                        return False, "No se pudo encontrar grupo personal"
+                
+                # Relacionar documento con grupo
+                group_document = {
+                    "group_id": group_id,
+                    "document_id": document_id,
+                    "added_by": user_uuid
+                }
+                
+                group_doc_response = requests.post(
+                    f"{SUPABASE_URL}/rest/v1/group_documents",
+                    headers=headers,
+                    json=group_document
+                )
+                
+                if group_doc_response.status_code != 201:
+                    return False, "Error al relacionar documento con grupo"
+                
+                return True, document_id
+                
+            finally:
+                # Limpiar archivo temporal
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
+                    
+        except Exception as e:
+            logging.error(f"Error creando documento desde Drive: {e}")
+            return False, f"Error: {str(e)}"
+    
+    def _determine_content_type(self, filename, mime_type):
+        """Determinar tipo de contenido basado en nombre y MIME type"""
+        filename_lower = filename.lower()
+        
+        if mime_type.startswith('image/') or filename_lower.endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')):
+            return 'image'
+        elif mime_type == 'application/pdf' or filename_lower.endswith('.pdf'):
+            return 'pdf'
+        elif mime_type.startswith('text/') or filename_lower.endswith('.txt'):
+            return 'text'
+        elif mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or filename_lower.endswith('.docx'):
+            return 'docx'
+        else:
+            return 'text'  # Default fallback
     def get_personal_group_contents(self, user_id, limit=20):
         """Obtener contenidos del grupo personal del usuario"""
         headers = self._get_supabase_headers()
