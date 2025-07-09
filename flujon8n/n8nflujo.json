@@ -31,8 +31,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        -1540,
-        80
+        -1860,
+        60
       ],
       "id": "a2ea9288-8466-4810-a3e5-d935eb4bdf6c",
       "name": "If (Query or Document)"
@@ -48,8 +48,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        220,
-        -160
+        1680,
+        20
       ],
       "id": "4a683caa-09e6-4c58-99c1-cd7196bba23d",
       "name": "Telegram Response",
@@ -69,8 +69,8 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        -600,
-        120
+        40,
+        360
       ],
       "id": "9f45763e-18cb-484d-bf4d-a06759b34356",
       "name": "Memory"
@@ -103,8 +103,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1360,
-        -40
+        -1600,
+        -120
       ],
       "id": "0eaf8d9a-794e-4cfb-a5aa-d07e37847a8b",
       "name": "If"
@@ -133,7 +133,7 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1780,
+        -2020,
         60
       ],
       "id": "0e1eff4d-10ac-47bf-8f0d-79a995f5bd36",
@@ -167,8 +167,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1340,
-        360
+        -1600,
+        380
       ],
       "id": "5c83cfee-0927-4ec8-9104-1363d249b29a",
       "name": "If Image"
@@ -181,8 +181,8 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -900,
-        160
+        -1380,
+        140
       ],
       "id": "b1a4c6c9-bbee-4ef8-a709-2675319f768b",
       "name": "Extracto1",
@@ -216,8 +216,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1360,
-        100
+        -1740,
+        260
       ],
       "id": "e8df9b04-a9a4-431a-a766-6906e40a9871",
       "name": "documentoful"
@@ -232,8 +232,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1080,
-        20
+        -1600,
+        140
       ],
       "id": "f430eb70-4498-4325-ba7e-ffb1d0f976d2",
       "name": "nono_descarga",
@@ -247,18 +247,18 @@
     },
     {
       "parameters": {
-        "agent": "conversationalAgent",
         "promptType": "define",
         "text": "={{ $json.mensajeia }}",
+        "hasOutputParser": true,
         "options": {
-          "systemMessage": "=**INSTRUCCIÓN CRÍTICA: Para CUALQUIER pregunta sobre leyes, DEBES usar la herramienta HTTP Request1 antes de responder. Es OBLIGATORIO.**\n\nEres un asistente legal experto en la legislación de Chile. Tu ÚNICA función es buscar leyes usando la herramienta HTTP Request disponible.\n\n**Contexto del Documento:**\n`Contexto: {{ $json.text || $json.context || 'No hay contexto específico disponible' }}`\n\n**REGLAS OBLIGATORIAS:**\n\n1. **SIEMPRE USA LA HERRAMIENTA:** Para CUALQUIER pregunta sobre leyes, decretos, códigos o términos legales, DEBES usar la herramienta HTTP Request. NO respondas sin usarla.\n\n2. **Detección automática:** Si el usuario menciona palabras como:\n   - \"ley\", \"decreto\", \"código\", \"artículo\"\n   - \"busca\", \"encuentra\", \"dame\", \"muestra\"\n   - Cualquier término legal específico\n   → USA LA HERRAMIENTA INMEDIATAMENTE\n\n3. **Parámetros de la herramienta:**\n   - **opt**: Usa \"61\" si el usuario pide cantidad específica (ej: \"5 leyes\"), sino usa \"60\"\n   - **cadena**: Extrae el término de búsqueda de la pregunta + contexto\n   - **cantidad**: Solo si el usuario especifica número (ej: \"5\", \"10\")\n\n4. **Ejemplos que REQUIEREN herramienta:**\n   - \"Dame 5 leyes sobre campesinos\" → opt=61, cadena=campesinos, cantidad=5\n   - \"Busca ley de arriendo\" → opt=60, cadena=ley de arriendo\n   - \"Qué dice sobre derechos de agua\" → opt=60, cadena=derechos de agua\n\n5. **Formato de respuesta:** Nunca muestres XML. Presenta resultados en formato amigable.\n\n**Ejemplos de flujo:**\n\n**Ejemplo 1 (Sin Contexto):**\n- Usuario: \"Hola, me gustaría saber sobre la ley de arriendo, los 3 artículos más importantes\"\n- Tu pensamiento: \"Ok, no hay contexto. El `terminoBusqueda` es 'ley de arriendo'. El usuario pide 3 resultados, así que `cantidadResultados` es 3 y `opcionBusqueda` es '61'.\"\n- Tú usas la herramienta, recibes el XML, lo lees y respondes con el resumen.\n\n**Ejemplo 2 (Con Contexto):**\n- Contexto del Documento: \"El presente informe analiza la escasez hídrica y los derechos de aprovechamiento de aguas para la agricultura...\"\n- Usuario: \"Encuéntrame 2 leyes relacionadas con esto.\"\n- Tu pensamiento: \"Ok, el usuario dice 'esto'. Reviso el `Contexto`. Habla de 'derechos de aprovechamiento de aguas para la agricultura'. Ese es mi `terminoBusqueda`. El usuario pide 2 resultados, así que `cantidadResultados` es 2 y `opcionBusqueda` es '61'.\"\n- Tú usas la herramienta, recibes el XML, lo lees y respondes con el resumen.\n\n\n**IMPORTANTE:** Si no usas la herramienta cuando debes, estás fallando en tu función principal.\n**FLUJO OBLIGATORIO:**\n1. Usuario hace pregunta legal → USAR HERRAMIENTA\n2. Recibir XML → Procesar información\n3. Responder en formato amigable\n\n**NUNCA respondas sobre leyes sin usar la herramienta HTTP Request1 primero.**\n\n**Frases que SIEMPRE activan la herramienta:**\n- \"Dame X leyes sobre...\"\n- \"Busca información sobre...\"\n- \"Qué dice la ley sobre...\"\n- \"Encuentra decretos de...\"\n- Cualquier mención de términos legales específicos"
+          "systemMessage": "Tu única tarea es analizar la pregunta del usuario y extraer los parámetros requeridos. Debes devolver la información en el formato JSON especificado.\n\nPregunta del Usuario: {{ $json.mensajeia }}"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        -760,
-        -140
+        -780,
+        -200
       ],
       "id": "d2806862-979c-4b27-b196-801124252359",
       "name": "AI Agent1",
@@ -271,8 +271,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
       "typeVersion": 1,
       "position": [
-        -740,
-        40
+        -240,
+        300
       ],
       "id": "01e728e0-79c9-4994-b83b-c2b55d26c0d2",
       "name": "DeepSeek Chat Model",
@@ -306,45 +306,11 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1060,
-        -140
+        -940,
+        140
       ],
       "id": "daa11508-220d-43d4-b4cb-36f4d17ff63b",
       "name": "Edit Fields1"
-    },
-    {
-      "parameters": {
-        "toolDescription": "Utiliza esta herramienta para buscar leyes, decretos o cualquier término en la base de datos oficial de Ley Chile. Es la mejor opción para responder preguntas sobre la legislación chilena.",
-        "url": "https://www.leychile.cl/Consulta/obtxml",
-        "sendQuery": true,
-        "parametersQuery": {
-          "values": [
-            {
-              "name": "opt",
-              "valueProvider": "fieldValue",
-              "value": "={{ $json.opcionBusqueda }}"
-            },
-            {
-              "name": "cadena",
-              "valueProvider": "fieldValue",
-              "value": "={{ $json.terminoBusqueda }}"
-            },
-            {
-              "name": "cantidad",
-              "valueProvider": "fieldValue",
-              "value": "={{ $json.cantidadResultados }}"
-            }
-          ]
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
-      "typeVersion": 1.1,
-      "position": [
-        -440,
-        0
-      ],
-      "id": "191420cf-30ec-4362-b39f-015e0d3daeb6",
-      "name": "HTTP Request1"
     },
     {
       "parameters": {
@@ -360,8 +326,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -1040,
-        400
+        -1380,
+        380
       ],
       "id": "9b18c2cb-6bb9-44ad-9965-5fcbff493cfb",
       "name": "descarga_imagen",
@@ -381,8 +347,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -640,
-        400
+        -1080,
+        380
       ],
       "id": "77460722-d8e1-410a-8f26-25aef80a2f25",
       "name": "HTTP Request",
@@ -401,8 +367,8 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        -860,
-        400
+        -1240,
+        380
       ],
       "id": "adb56949-2474-48fb-8c05-2670c04519d0",
       "name": "Move64"
@@ -419,6 +385,371 @@
       ],
       "id": "635d43e3-57f3-4e32-9a4e-0cd62f8e8f77",
       "name": "Code"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "ad0a8a3b-c04d-4219-97f5-5114c5f54bbf",
+              "leftValue": "={{ $json.data }}",
+              "rightValue": "</Normas>",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -340,
+        -20
+      ],
+      "id": "0cb584e5-101a-4869-b563-ef0822c9f1cf",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.xml",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        -180
+      ],
+      "id": "23d511b2-9e23-4c37-bb86-36f1dd89cc4c",
+      "name": "XML"
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "options": {
+          "systemMessage": "Eres un asistente legal experto...\n\nResultados de la Búsqueda (en formato JSON):\n{{ JSON.stringify($json) }}\n\nPara cada ley, ahora tienes información adicional extraída de su página web, bajo la clave 'infoRecuadro'.\n\nInstrucciones de Formato:\n1.  Para cada ley encontrada, presenta:\n    - Título: ...\n    - Número de Ley: ...\n    - Enlace: ...\n    - Resumen Adicional: Presenta de forma limpia y ordenada la información obtenida en 'infoRecuadro'. Extrae y etiqueta claramente la fecha de promulgación, publicación y las materias. Si ves un texto sobre 'MODIFICACIÓN', menciónalo de forma destacada.\n..."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1040,
+        -360
+      ],
+      "id": "a474fe63-b12e-4faa-b480-d3b1d90f6277",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "options": {
+          "systemMessage": "Eres un asistente legal servicial y empático. Se realizó una búsqueda en la base de datos oficial de Ley Chile para el término \"{{ $('AI Agent1').json.terminoBusqueda }}\" pero no se encontraron resultados específicos.\n\nTu tarea es informar al usuario de esto de una manera útil y proactiva.\n\n**Instrucciones:**\n1.  Informa amablemente que la búsqueda para \"{{ $('AI Agent1').json.terminoBusqueda }}\" no arrojó resultados directos.\n2.  **MUY IMPORTANTE:** Sugiere 2 o 3 términos de búsqueda alternativos o más amplios que podrían estar relacionados. Sé creativo y piensa como un experto.\n    - Ejemplo si la búsqueda fue \"perros en la calle\", sugiere \"tenencia responsable de mascotas\", \"protección animal\" o \"control de animales\".\n    - Ejemplo si la búsqueda fue \"problema con vecino ruidoso\", sugiere \"ruidos molestos\", \"ordenanza municipal ruido\" o \"reglamento de copropiedad\".\n3.  Anima al usuario a intentar de nuevo con una de tus sugerencias. No des información legal que no hayas verificado."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -40,
+        60
+      ],
+      "id": "3f83eb01-5ad0-42ae-b01f-d6db444befbb",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"cadena\": \"leyes sobre arriendo\",\n  \"cantidad\": \"5\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -600,
+        280
+      ],
+      "id": "3e4a6448-a886-4c79-8d48-4d727dd30783",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "url": "https://www.leychile.cl/Consulta/obtxml",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "opt",
+              "value": "61"
+            },
+            {
+              "name": "cadena",
+              "value": "={{ $json.output.cadena }}"
+            },
+            {
+              "name": "cantidad",
+              "value": "={{ $json.output.cantidad }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        -20
+      ],
+      "id": "ada0cf54-517f-4b7e-a510-1da30cbfff9c",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        120,
+        -200
+      ],
+      "id": "25c0c1d0-4fa3-4fed-981b-9c9abac8da34",
+      "name": "Loop Over Items",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Normas.Norma",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -180
+      ],
+      "id": "7264fcf2-3d8f-459f-9548-a0df83a755fb",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "={{ $json.mensajeia }}",
+        "options": {
+          "systemMessage": "=Antes de responder, siempre revisa el siguiente contexto. Puede provenir de un documento que el usuario ha cargado.\n`Contexto: {{ $json.text || $json.context || 'No hay contexto específico disponible' }}`\n\n**Tus reglas son:**\n1.  **Prioriza el Contexto:** Si el `Contexto` contiene información, úsala como la fuente principal para entender la solicitud. La pregunta del usuario podría ser una instrucción sobre qué hacer con ese contexto (ej. \"Busca las leyes mencionadas aquí\").\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -400,
+        540
+      ],
+      "id": "14f91142-c15e-4f97-bb2d-54b7b5446bcf",
+      "name": "AI Agent3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "711cd063-26fe-4622-8165-b698b529210e",
+              "name": "mensajeia",
+              "value": "={{ $json.content || $('Edit Fields').item.json.original.body.question }}",
+              "type": "string"
+            },
+            {
+              "id": "1a4403cc-b2b7-49a0-927f-ad197e106136",
+              "name": "text",
+              "value": "={{$json.text || $json.candidates[0].content.parts[0].text}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -680,
+        480
+      ],
+      "id": "9a79c9e1-13f0-464d-b6bb-fcf2a7beba22",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3139f42c-aa53-44b0-b288-20c35571a41e",
+              "name": "api_key",
+              "value": "PCL3YCEIRZW7FQHQ0RD3V5325LAI52420VXGK71BC3XET9LD2KCPWK30OXAF7HTRDIOJD09HQZSWAQE0",
+              "type": "string"
+            },
+            {
+              "id": "5c3feaf1-d4fe-46ad-860b-186a3b694858",
+              "name": "url",
+              "value": "={{ $json.url_final }}",
+              "type": "string"
+            },
+            {
+              "id": "94c4f316-7d06-45bc-8d70-a0bbe69dd019",
+              "name": "render_js",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "4d4bf71b-b54f-4f55-83f8-90fe4fa1178b",
+              "name": "premium_proxy",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "4c9aa0db-93e5-4f6a-a751-63f747bf7e1b",
+              "name": "wait_for",
+              "value": ".datos",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        440,
+        -160
+      ],
+      "id": "26795853-5c2f-4242-9eb2-8e79c168f7bf",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Asume que la variable de entrada se llama 'input_url'\nconst newUrl = $input.first().json[\"Normas.Norma\"].Url.replace('https://www.leychile.cl', 'https://www.bcn.cl/leychile');\n\nreturn { url_final: newUrl };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        -120
+      ],
+      "id": "268be5b0-eb61-4f35-bff8-137463b1e6a9",
+      "name": "Code1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "https://app.scrapingbee.com/api/v1/",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "={\"api_key\": \"{{ $json.api_key }}\",\"url\":\"{{ $json.url }}\",\"render_js\":true,\"premium_proxy\":true,\"timeout\":\"30000\",\"wait\": \"8000\",\"block_resources\":true}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        620,
+        -160
+      ],
+      "id": "a60235a9-04b8-418c-a7e4-2fd3b6898a35",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5565ca2d-943f-40d8-8f68-529d2c28729f",
+              "name": "resultados_scrapeo",
+              "value": "={{ $results('scrapscrap') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        300,
+        -280
+      ],
+      "id": "cf712ec9-752e-4b40-8637-df5b6bbbb5d4",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "infoRecuadro",
+              "cssSelector": "div.datos"
+            },
+            {
+              "key": "Info description",
+              "cssSelector": "#alturaResultados > div.col-md > div > div > h1",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        -160
+      ],
+      "id": "adf1b35f-3170-474c-a558-b5bc96cf11bc",
+      "name": "scrapscrap",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8782a46a-5640-4408-986b-18d042b0b722",
+              "name": "fuente",
+              "value": "={{ $node[\"Loop Over Items\"].json }}",
+              "type": "string"
+            },
+            {
+              "id": "ab47b604-a712-4807-9742-f3fe3fb17a5d",
+              "name": "inforecuadro",
+              "value": "={{ $json.infoRecuadro }}",
+              "type": "string"
+            },
+            {
+              "id": "f6e33158-842b-4d6c-8db7-44ac02d72ac9",
+              "name": "infodescription",
+              "value": "={{ $json[\"Info description\"] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        -160
+      ],
+      "id": "962470be-e37c-4faa-9efb-c2b12ed21acc",
+      "name": "Edit Fields5"
     }
   ],
   "pinData": {
@@ -431,7 +762,7 @@
             "x-forwarded-for": "201.215.127.161",
             "x-forwarded-proto": "https",
             "connection": "upgrade",
-            "content-length": "469",
+            "content-length": "236",
             "user-agent": "python-requests/2.32.3",
             "accept-encoding": "gzip, deflate",
             "accept": "*/*",
@@ -441,14 +772,12 @@
           "query": {},
           "body": {
             "telegram_id": 1151207547,
-            "action": "process_image",
-            "document_id": "948654bd-a851-4fe1-a379-5e0f82176cb4",
+            "text": "Consulto por las últimas 5 leyes publicadas de campesinos",
+            "type": "text",
+            "action": "query",
             "group_id": "e7dcfc0f-4c3d-4e1b-940f-cb48a3872caf",
-            "file_path": "https://leoyybfbnjajkktprhro.supabase.co/storage/v1/object/public/telegrambucket/groups/e7dcfc0f-4c3d-4e1b-940f-cb48a3872caf/Kaksieiwiasn.jpg",
-            "filename": "Kaksieiwiasn.jpg",
-            "custom_name": "Kaksieiwiasn",
-            "content_type": "image",
-            "question": "Está la camioneta infringiendo alguna ley"
+            "documents": [],
+            "has_selected_context": false
           },
           "webhookUrl": "https://n8n-master.captain.aintelligence.cl/webhook/telegram",
           "executionMode": "production"
@@ -490,7 +819,17 @@
       "ai_memory": [
         [
           {
-            "node": "AI Agent1",
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "AI Agent2",
+            "type": "ai_memory",
+            "index": 0
+          },
+          {
+            "node": "AI Agent3",
             "type": "ai_memory",
             "index": 0
           }
@@ -534,7 +873,7 @@
       "main": [
         [
           {
-            "node": "Edit Fields1",
+            "node": "Edit Fields2",
             "type": "main",
             "index": 0
           }
@@ -574,7 +913,7 @@
       "main": [
         [
           {
-            "node": "Telegram Response",
+            "node": "HTTP Request1",
             "type": "main",
             "index": 0
           }
@@ -588,6 +927,21 @@
             "node": "AI Agent1",
             "type": "ai_languageModel",
             "index": 0
+          },
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "AI Agent3",
+            "type": "ai_languageModel",
+            "index": 0
           }
         ]
       ]
@@ -598,17 +952,6 @@
           {
             "node": "AI Agent1",
             "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP Request1": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent1",
-            "type": "ai_tool",
             "index": 0
           }
         ]
@@ -640,7 +983,7 @@
       "main": [
         [
           {
-            "node": "Edit Fields1",
+            "node": "Edit Fields2",
             "type": "main",
             "index": 0
           }
@@ -657,13 +1000,203 @@
           }
         ]
       ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "XML",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "XML": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent3": {
+      "main": [
+        [
+          {
+            "node": "Telegram Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "scrapscrap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "scrapscrap": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "e1b65e1e-6ef2-4ff8-8465-4c3fcf987506",
+  "versionId": "e1abcaef-ac2b-4ea3-845a-686600e14744",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "a502742c5a027e62d4303a7e7a933c28de972b345bde35a45c53680990fc04b8"
