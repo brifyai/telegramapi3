@@ -1,20 +1,54 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
 from database import UserDatabase
 import os
 import secrets
-import requests  # Añadir esta importación
-from dotenv import load_dotenv 
+import requests
+from datetime import datetime
+from dotenv import load_dotenv
+from bot import get_or_create_personal_group
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_login import LoginManager, login_required, current_user, UserMixin, login_user
+class User(UserMixin):
+    def __init__(self, user_data):
+        self.id = user_data['id']
+        self.email = user_data.get('email')
+        self.telegram_id = user_data.get('telegram_id')
+        self.storage_used = user_data.get('storage_used', 0)
+        self.current_plan_id = user_data.get('current_plan_id')
+        self.plan_expiration = user_data.get('plan_expiration')
+        self.plan = PLANS.get(self.current_plan_id) if self.current_plan_id else None
+
+    def get_id(self):
+        return str(self.id)
+
 
 load_dotenv()
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)  # Clave secreta aleatoria
-
+# Agregar el filtro datetime
+@app.template_filter('datetime')
+def format_datetime(value, format='%Y-%m-%d %H:%M:%S'):
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            return value
+    return value.strftime(format)
+# Inicializar Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 # Inicializar la base de datos
 db = UserDatabase()
-
-
+@login_manager.user_loader
+def load_user(user_id):
+    user_data = db.get_user_by_id(user_id)
+    if user_data:
+        return User(user_data)
+    return None
 # Definir planes disponibles
 PLANS = {
     'lite_monthly': {
@@ -185,15 +219,23 @@ def login():
         password = request.form.get('password')
         
         # Validar credenciales
-        success, message = db.login_web_user(email, password)
+        success, user_id = db.login_web_user(email, password)
         
         if success:
-            # Guardar ID de usuario en la sesión
-            session['user_id'] = message
+            # Obtener datos del usuario y crear instancia de User
+            user_data = db.get_user_by_id(user_id)
+            user = User(user_data)
+            
+            # Iniciar sesión con Flask-Login
+            login_user(user)
+            
+            # Guardar ID en la sesión (si aún lo necesitas)
+            session['user_id'] = user_id
+            
             flash('Inicio de sesión exitoso', 'success')
             return redirect(url_for('dashboard'))
         else:
-            flash(message, 'danger')
+            flash(user_id, 'danger')  # user_id contiene el mensaje de error en este caso
     
     return render_template('login.html')
 
@@ -213,22 +255,56 @@ def dashboard():
     
     # Obtener datos del usuario
     user_id = session['user_id']
-    user_data = db.get_user_by_id(user_id) 
+    user_data = db.get_user_by_id(user_id)
     
     if not user_data:
         session.pop('user_id', None)
         flash('Usuario no encontrado', 'danger')
         return redirect(url_for('login'))
     
-    # Calcular almacenamiento usado y disponible
-    storage_used = user_data.get('storage_used', 0) / (1024 * 1024 * 1024)  # Convertir a GB
+    # Obtener el telegram_id del usuario
+    telegram_id = user_data.get('telegram_id')
+    if not telegram_id:
+        flash('No se encontró el ID de Telegram asociado a tu cuenta', 'danger')
+        return redirect(url_for('login'))
+    
+    # Obtener grupo personal del usuario usando telegram_id
+    personal_group = get_or_create_personal_group(telegram_id)
+    
+    # Obtener información del grupo para obtener shared_storage_bytes
+    headers = db._get_supabase_headers()
+    group_response = requests.get(
+        f"{SUPABASE_URL}/rest/v1/groups",
+        headers=headers,
+        params={"id": f"eq.{personal_group}"}
+    )
+    
+    # Obtener contenido personal
+    success, personal_contents = db.get_group_contents(personal_group, user_id)
+    
+    # Calcular almacenamiento usando shared_storage_bytes
+    storage_used_mb = 0
+    if group_response.status_code == 200 and group_response.json():
+        group = group_response.json()[0]
+        storage_used_mb = group.get('shared_storage_bytes', 0) / (1024 * 1024)  # Convertir a MB
     
     # Obtener plan actual
-    current_plan_id = user_data.get('current_plan_id') 
+    current_plan_id = user_data.get('current_plan_id')
     storage_limit = 0
+    storage_limit_mb = 0
 
-    if current_plan_id and current_plan_id in PLANS:
-        storage_limit = PLANS[current_plan_id]['storage']
+    if current_plan_id:
+        # Obtener información del plan desde la base de datos
+        headers = db._get_supabase_headers()
+        plan_response = requests.get(
+            f"{SUPABASE_URL}/rest/v1/plans?id=eq.{current_plan_id}",
+            headers=headers
+        )
+        
+        if plan_response.status_code == 200 and plan_response.json():
+            plan = plan_response.json()[0]
+            storage_limit_bytes = plan.get('storage_limit_bytes', 0)
+            storage_limit_mb = storage_limit_bytes / (1024 * 1024)  # Convertir bytes a MB
     
     # Verificar si el plan está activo
     plan_active = False
@@ -237,11 +313,137 @@ def dashboard():
         expiration_date = datetime.datetime.fromisoformat(user_data['plan_expiration'])
         plan_active = expiration_date > datetime.datetime.now()
     
-    return render_template('dashboard.html', 
-                           user=user_data, 
-                           storage_used=storage_used,
-                           storage_limit=storage_limit,
-                           plan_active=plan_active)
+    return render_template('dashboard.html',
+                        user=user_data,
+                        storage_used=storage_used_mb,  # En MB
+                        storage_limit=storage_limit_mb,  # En MB
+                        plan_active=plan_active,
+                        personal_contents=personal_contents if success else [])
+
+
+@app.route('/invite_member', methods=['POST'])
+def invite_member():
+    if 'user_id' not in session:
+        return jsonify({'error': 'No autorizado'}), 401
+    
+    data = request.get_json()
+    email = data.get('email')
+    group_id = data.get('group_id')
+    
+    if not email or not group_id:
+        return jsonify({'error': 'Datos incompletos'}), 400
+    
+    # Generar token único para la invitación
+    invitation_token = secrets.token_urlsafe(32)
+    
+    # Guardar la invitación en la base de datos
+    success, invitation_id = db.create_invitation({
+        'email': email,
+        'group_id': group_id,
+        'token': invitation_token,
+        'expires_at': (datetime.datetime.now() + datetime.timedelta(days=7)).isoformat(),
+        'status': 'pending'
+    })
+    
+    if not success:
+        return jsonify({'error': 'Error al crear la invitación'}), 500
+    
+    # Configurar EmailJS
+    emailjs_data = {
+        'service_id': 'service_f4bewpe',
+        'template_id': 'template_pw8croo',
+        'user_id': 'Nmzoub3usR_nTten74i90',
+        'template_params': {
+            'to_email': email,
+            'name': 'Administrador',  # Puedes personalizar esto con el nombre del admin
+            'message': f'Te invito a unirte al grupo {db.get_group_name(group_id)}. Haz clic en el siguiente enlace para registrarte:',
+            'time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'invitation_link': f"{request.host_url.rstrip('/')}/register/{invitation_token}"
+        }
+    }
+    
+    # Enviar email usando EmailJS
+    response = requests.post(
+        'https://api.emailjs.com/api/v1.0/email/send',
+        json=emailjs_data,
+        headers={
+            'Content-Type': 'application/json',
+            'origin': 'http://localhost'  # Ajusta según tu dominio
+        }
+    )
+    
+    if response.status_code != 200:
+        # Si falla el envío, marcar la invitación como fallida
+        db.update_invitation_status(invitation_id, 'failed')
+        return jsonify({'error': 'Error al enviar la invitación'}), 500
+    
+    # Actualizar estado de la invitación a enviada
+    db.update_invitation_status(invitation_id, 'sent')
+    
+    return jsonify({'message': 'Invitación enviada correctamente'})
+
+@app.route('/register/<invitation_token>', methods=['GET', 'POST'])
+def register_with_invitation(invitation_token):
+    # Verificar token de invitación
+    invitation = db.get_invitation_by_token(invitation_token)
+    if not invitation:
+        flash('Invitación no válida o expirada', 'danger')
+        return redirect(url_for('home'))
+    
+    if request.method == 'POST':
+        email = invitation['email']  # Email ya verificado de la invitación
+        password = request.form.get('password')
+        telegram_id = request.form.get('telegram_id')
+        
+        if not telegram_id:
+            flash('El ID de Telegram es requerido', 'danger')
+            return render_template('register.html', invitation=invitation)
+        
+        # Registrar usuario y vincularlo al grupo
+        success, user_id = db.register_invited_user(email, password, telegram_id, invitation)
+        
+        if success:
+            flash('Registro exitoso. Ahora puedes iniciar sesión.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Error en el registro', 'danger')
+            return render_template('register.html', invitation=invitation)
+    
+    return render_template('register.html', invitation=invitation)
+
+
+
+@app.route('/my_content')
+@login_required
+def my_content():
+    user_id = session.get('user_id')
+    
+    user_data = db.get_user_by_id(user_id)
+    
+    # Verificar si el usuario tiene un plan activo
+    plan_active = False
+    if user_data.get('plan_expiration'):
+        import datetime
+        expiration_date = datetime.datetime.fromisoformat(user_data['plan_expiration'])
+        plan_active = expiration_date > datetime.datetime.now()
+    
+    if not plan_active:
+        flash('Necesitas un plan activo para ver tu contenido', 'warning')
+        return redirect(url_for('plans'))
+    
+    # Obtener el telegram_id del usuario desde user_data
+    telegram_id = user_data.get('telegram_id')
+    if not telegram_id:
+        flash('No se encontró el ID de Telegram asociado a tu cuenta', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    personal_group = get_or_create_personal_group(telegram_id)
+    
+    if personal_group:
+        return redirect(url_for('group_detail', group_id=personal_group))
+    else:
+        flash('Error al acceder a tu contenido personal', 'danger')
+        return redirect(url_for('dashboard'))
 
 @app.route('/plans')
 def plans():
@@ -815,11 +1017,11 @@ def upload_group_content(group_id):
     
     group = group_response.json()[0]
     
-    # Obtener información de almacenamiento del usuario
-    user_data = db.get_user(user_id)
-    used_storage = user_data.get('used_storage_bytes', 0) if user_data else 0
-    plan_data = user_data.get('current_plan', {}) if user_data else {}
-    max_storage = plan_data.get('storage_limit', 10 * 1024 * 1024)  # 10MB por defecto
+    # Definir max_storage antes de usarlo
+    max_storage = 100 * 1024 * 1024  # 100MB por grupo
+    
+    # Usar el almacenamiento del grupo en lugar del usuario
+    used_storage = group.get('shared_storage_bytes', 0)
     available_storage = max(0, max_storage - used_storage)
         
     if request.method == 'POST':
@@ -863,9 +1065,9 @@ def upload_group_content(group_id):
             flash(f'Error al subir contenido: {message}', 'danger')
     
     return render_template('upload_group_content.html', 
-                           group=group, 
-                           used_storage=used_storage,
-                           available_storage=available_storage)
+                          group=group, 
+                          used_storage=used_storage,
+                          available_storage=available_storage)
 
 @app.route('/groups/<group_id>/add_member', methods=['GET', 'POST'])
 def add_group_member(group_id):

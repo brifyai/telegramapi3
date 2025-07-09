@@ -1160,6 +1160,121 @@ class UserDatabase:
             logging.error(f"Error obteniendo documentos del usuario: {e}")
             print(f"Debug - Exception: {e}")
             return False, []
+    def get_personal_group_contents(self, user_id, limit=20):
+        """Obtener contenidos del grupo personal del usuario"""
+        headers = self._get_supabase_headers()
+        
+        try:
+            # Obtener UUID del usuario
+            user_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/users",
+                headers=headers,
+                params={"telegram_id": f"eq.{user_id}"}
+            )
+            
+            if user_response.status_code != 200 or not user_response.json():
+                return False, []
+            
+            user_uuid = user_response.json()[0]['id']
+            
+            # Buscar el grupo personal
+            group_response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/groups",
+                headers=headers,
+                params={"name": f"eq.Personal_{user_id}", "admin_id": f"eq.{user_uuid}"}
+            )
+            
+            if group_response.status_code != 200 or not group_response.json():
+                return False, []
+            
+            group_id = group_response.json()[0]['id']
+            
+            # Obtener documentos del grupo usando la tabla group_documents con select específico
+            response = requests.get(
+                f"{SUPABASE_URL}/rest/v1/group_documents",
+                headers=headers,
+                params={
+                    "group_id": f"eq.{group_id}",
+                    "select": "id,created_at,documents(id,title,content,file_type,file_path,file_size,metadata,created_at)",
+                    "order": "created_at.desc",
+                    "limit": str(limit)
+                }
+            )
+            
+            if response.status_code == 200:
+                group_docs = response.json()
+                documents = []
+                
+                for group_doc in group_docs:
+                    # Verificar que documents existe y no es None
+                    if group_doc.get('documents') and isinstance(group_doc['documents'], dict):
+                        doc = group_doc['documents']
+                        # Verificar que el documento tiene los campos requeridos
+                        if doc.get('id'):
+                            # Extraer información del metadata si existe
+                            metadata = doc.get('metadata', {})
+                            if isinstance(metadata, dict):
+                                filename = metadata.get('filename', doc.get('title', 'Sin nombre'))
+                                file_type = metadata.get('content_type', doc.get('file_type', 'unknown'))
+                                file_url = metadata.get('file_url', '')
+                                file_size = metadata.get('file_size', doc.get('file_size', 0))
+                            else:
+                                filename = doc.get('title', 'Sin nombre')
+                                file_type = doc.get('file_type', 'unknown')
+                                file_url = doc.get('file_path', '')
+                                file_size = doc.get('file_size', 0)
+                            
+                            documents.append({
+                                'id': doc['id'],
+                                'title': doc.get('title', filename),
+                                'filename': filename,
+                                'content': doc.get('content', ''),
+                                'file_type': file_type,
+                                'file_path': file_url,
+                                'created_at': doc.get('created_at', ''),
+                                'file_size': file_size,
+                                'file_size_bytes': file_size  # Añadido para compatibilidad con la plantilla
+                            })
+                
+                return True, documents
+            
+            return False, []
+            
+        except Exception as e:
+            logging.error(f"Error obteniendo documentos del grupo personal: {e}")
+            print(f"Debug - Exception: {e}")
+            return False, []
+
+    def create_invitation(self, invitation_data):
+        headers = self._get_supabase_headers()
+        response = requests.post(
+            f"{SUPABASE_URL}/rest/v1/invitations",
+            headers=headers,
+            json=invitation_data
+        )
+        if response.status_code == 201:
+            return True, response.json().get('id')
+        return False, None
+
+    def update_invitation_status(self, invitation_id, status):
+        headers = self._get_supabase_headers()
+        response = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/invitations?id=eq.{invitation_id}",
+            headers=headers,
+            json={'status': status}
+        )
+        return response.status_code == 200
+
+    def get_group_name(self, group_id):
+        headers = self._get_supabase_headers()
+        response = requests.get(
+            f"{SUPABASE_URL}/rest/v1/groups?id=eq.{group_id}",
+            headers=headers
+        )
+        if response.status_code == 200 and response.json():
+            return response.json()[0].get('name')
+        return None
+
 
     def get_document_info(self, document_id):
         """Obtener información específica de un documento"""

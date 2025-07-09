@@ -158,26 +158,27 @@ async def group_documents_command(update: Update, context: ContextTypes.DEFAULT_
         )
         return
 
-    # Obtener documentos del grupo (implementar esta función en database.py)
-    success, documents = db.get_group_documents(user_id)
+    # Obtener documentos del grupo usando get_group_contents
+    success, contents = db.get_group_contents(group_id, user_id)
     
-    if not success or not documents:
+    if not success or not contents:
         await update.message.reply_text(
-            "No hay documentos disponibles en el grupo."
+            "No hay documentos disponibles en el grupo o no tienes acceso a ellos."
         )
         return
 
     # Crear botones inline para cada documento
     keyboard = []
-    for doc in documents[:10]:  # Limitar a 10 documentos
-        doc_name = doc.get('title', doc.get('filename', 'Documento sin nombre'))[:30]
-        doc_type = doc.get('file_type', 'unknown')
-        emoji = "📄" if doc_type == 'application/pdf' else "🖼️" if 'image' in str(doc_type) else "📎"
+    for content in contents[:10]:  # Limitar a 10 documentos
+        content_data = content.get('content_data', {})
+        doc_name = content_data.get('filename', 'Documento sin nombre')[:30]
+        doc_type = content_data.get('file_type', 'unknown')
+        emoji = "📄" if 'pdf' in str(doc_type).lower() else "🖼️" if 'image' in str(doc_type).lower() else "📎"
         
         keyboard.append([
             InlineKeyboardButton(
                 f"{emoji} {doc_name}",
-                callback_data=f"select_doc_{doc['id']}"
+                callback_data=f"select_doc_{content.get('document_id')}"
             )
         ])
     
@@ -878,18 +879,17 @@ def check_user_plan(user_id):
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Mostrar ayuda sobre los comandos disponibles"""
+    """Mostrar lista de comandos disponibles"""
     help_text = (
-        "Comandos disponibles:\n"
+        "🤖 **Comandos disponibles:**\n\n"
         "/start - Iniciar el bot\n"
-        "/login - Iniciar sesión con tu cuenta web\n"
         "/help - Mostrar esta ayuda\n"
-        "/add_user - Añadir un usuario (solo admin)\n"
-        "/remove_user - Eliminar un usuario (solo admin)\n"
-        "/list_users - Listar todos los usuarios (solo admin)\n"
-        "/mis_documentos - Listar todos los documentos\n"
+        "/login - Vincular cuenta web con Telegram\n"
+        "/mis_documentos - Ver y seleccionar tus documentos\n"
+        "/documentos_grupo - Ver y seleccionar documentos del grupo\n"  # Agregar esta línea
     )
-    await update.message.reply_text(help_text)
+    
+    await update.message.reply_text(help_text, parse_mode='Markdown')
 
 async def add_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Añadir un usuario a la base de datos"""
@@ -1047,38 +1047,21 @@ async def receive_file_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     file_data = user_file_data[user_id]
     
-    # Validar el nombre
-    if len(custom_name) < 3:
-        await update.message.reply_text(
-            "❌ El nombre debe tener al menos 3 caracteres. Por favor, ingresa un nombre más descriptivo:"
-        )
-        return FILE_NAME_INPUT
-    
-    if len(custom_name) > 100:
-        await update.message.reply_text(
-            "❌ El nombre es demasiado largo (máximo 100 caracteres). Por favor, ingresa un nombre más corto:"
-        )
-        return FILE_NAME_INPUT
-    
-    await update.message.reply_text(f"✅ Procesando archivo con nombre: **{custom_name}**", parse_mode='Markdown')
-    
-    try:
-        if file_data['type'] == 'document':
-            return await process_document_with_custom_name(update, context, file_data, custom_name)
-        elif file_data['type'] == 'photo':
-            await process_photo_with_custom_name(update, context, file_data, custom_name)
-            return ConversationHandler.END
-    except Exception as e:
-        logging.error(f"Error procesando archivo: {e}")
-        # Escapar caracteres especiales
-        error_msg = str(e).replace('`', "'").replace('_', "-").replace('*', "-")
-        await update.message.reply_text(f"❌ Error al procesar el archivo: {error_msg}", parse_mode=None)
-    finally:
+    # Procesar según el tipo de archivo
+    if file_data['type'] == 'document':
+        result = await process_document_with_custom_name(update, context, file_data, custom_name)
         # Limpiar datos temporales
-        if user_id in user_file_data:
-            del user_file_data[user_id]
-    
-    return ConversationHandler.END
+        del user_file_data[user_id]
+        return result  # Esto debería retornar ASK_QUESTION o END
+    elif file_data['type'] == 'photo':
+        result = await process_photo_with_custom_name(update, context, file_data, custom_name)
+        # Limpiar datos temporales
+        del user_file_data[user_id]
+        return result  # Esto debería retornar ASK_QUESTION
+    else:
+        await update.message.reply_text("❌ Tipo de archivo no soportado.")
+        del user_file_data[user_id]
+        return ConversationHandler.END
 
 async def cancel_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancelar la subida del archivo"""
@@ -1257,7 +1240,7 @@ async def handle_document_question(update: Update, context: ContextTypes.DEFAULT
     if not hasattr(context, 'user_data') or 'last_document' not in context.user_data:
         await update.message.reply_text("❌ No se encontró información del archivo. Por favor, súbelo nuevamente.")
         return ConversationHandler.END
-    
+
     document_data = context.user_data['last_document']
     content_type = document_data['content_type']
     
@@ -1279,8 +1262,15 @@ async def handle_document_question(update: Update, context: ContextTypes.DEFAULT
     if n8n_webhook_url:
         try:
             await update.message.reply_text("🤔 Analizando tu " + ("documento" if content_type == 'pdf' else "imagen") + " y procesando tu pregunta...")
-            n8n_response = requests.post(n8n_webhook_url, json=payload, timeout=10)
-            print(f"Respuesta de n8n para la pregunta: {n8n_response.status_code}")
+            n8n_response = requests.post(n8n_webhook_url, json=payload, timeout=30)
+            
+            if n8n_response.status_code == 200:
+                # Aquí deberías manejar la respuesta de n8n
+                # Por ahora, solo confirmamos que se envió
+                await update.message.reply_text("✅ Tu pregunta ha sido procesada. La respuesta llegará en breve.")
+            else:
+                await update.message.reply_text("❌ Error al procesar tu pregunta. Por favor, intenta de nuevo.")
+                
         except requests.exceptions.RequestException as e:
             print(f"Error enviando pregunta a n8n: {e}")
             await update.message.reply_text("❌ Error al procesar tu pregunta. Por favor, intenta de nuevo más tarde.")
@@ -1306,6 +1296,7 @@ async def process_photo_with_custom_name(update: Update, context: ContextTypes.D
     import tempfile
     import os
     import requests
+    import json
     
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
     temp_file_path = temp_file.name
@@ -1318,7 +1309,7 @@ async def process_photo_with_custom_name(update: Update, context: ContextTypes.D
             group_id = get_or_create_personal_group(user_id)
             if not group_id:
                 await update.message.reply_text("Error al crear grupo personal.")
-                return
+                return ConversationHandler.END
             
             # Obtener UUID del usuario
             headers = {
@@ -1335,7 +1326,7 @@ async def process_photo_with_custom_name(update: Update, context: ContextTypes.D
             
             if user_response.status_code != 200 or not user_response.json():
                 await update.message.reply_text("Error al obtener información del usuario.")
-                return
+                return ConversationHandler.END
             
             user_uuid = user_response.json()[0]['id']
             
@@ -1348,25 +1339,43 @@ async def process_photo_with_custom_name(update: Update, context: ContextTypes.D
             success, result = db.upload_and_vectorize_file(group_id, user_uuid, file_obj, 'image')
             
             if success:
-                # Obtener el file_path del documento
-                doc_response = requests.get(
-                    f"{SUPABASE_URL}/rest/v1/documents",
+                # Obtener el document_id y file_path desde group_contents (igual que en documentos)
+                document_id = None
+                file_path = None
+                
+                content_response = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/group_contents",
                     headers=headers,
-                    params={"id": f"eq.{result}"}
+                    params={"id": f"eq.{result}"},
+                    timeout=10
                 )
                 
-                file_path = None
-                if doc_response.status_code == 200 and doc_response.json():
-                    file_path = doc_response.json()[0]['file_path']
+                if content_response.status_code == 200 and content_response.json():
+                    content_data = content_response.json()[0].get('content_data')
+                    if isinstance(content_data, str):
+                        try:
+                            content_data = json.loads(content_data)
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    if isinstance(content_data, dict):
+                        document_id = content_data.get('document_id')
+                        file_path = content_data.get('file_url')  # Obtener file_url directamente
+                        print(f"document_id obtenido: {document_id}")
+                        print(f"file_path obtenido: {file_path}")
+                
+                if not document_id:
+                    print("⚠️ No se pudo obtener document_id, usando result como fallback")
+                    document_id = result
                 
                 # Guardar información de la imagen en el contexto
                 if not hasattr(context, 'user_data'):
                     context.user_data = {}
                 
                 context.user_data['last_document'] = {
-                    'document_id': result,
+                    'document_id': document_id,  # Usar el document_id obtenido
                     'group_id': group_id,
-                    'file_path': file_path,
+                    'file_path': file_path,      # Usar el file_path obtenido desde group_contents
                     'filename': custom_filename,
                     'custom_name': custom_name,
                     'content_type': 'image'
@@ -1380,13 +1389,16 @@ async def process_photo_with_custom_name(update: Update, context: ContextTypes.D
                     parse_mode=None
                 )
                 
-                return ASK_QUESTION
+                return ASK_QUESTION  # ¡IMPORTANTE: Esto debe retornarse correctamente!
             else:
                 await update.message.reply_text(f"❌ Error al procesar la imagen: {result}")
+                return ConversationHandler.END
                 
     finally:
         if os.path.exists(temp_file_path):
-            os.unlink(temp_file_path)  
+            os.unlink(temp_file_path)
+    
+    return ConversationHandler.END
 async def my_documents_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mostrar documentos del usuario para seleccionar"""
     user_id = update.effective_user.id

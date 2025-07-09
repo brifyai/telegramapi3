@@ -6,14 +6,21 @@
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Registro de Usuario</h4>
+                    <h4 class="mb-0">{% if invitation %}Completar Registro{% else %}Registro de Usuario{% endif %}</h4>
                 </div>
                 <div class="card-body">
                     <form method="post">
+                        {% if invitation %}
+                        <div class="mb-3">
+                            <label class="form-label">Correo Electrónico</label>
+                            <input type="email" class="form-control" value="{{ invitation.email }}" readonly>
+                        </div>
+                        {% else %}
                         <div class="mb-3">
                             <label for="email" class="form-label">Correo Electrónico</label>
                             <input type="email" class="form-control" id="email" name="email" required>
                         </div>
+                        {% endif %}
                         <div class="mb-3">
                             <label for="password" class="form-label">Contraseña</label>
                             <input type="password" class="form-control" id="password" name="password" required>
@@ -23,17 +30,25 @@
                             <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                         </div>
                         <div class="mb-3">
-                            <label for="telegram_id" class="form-label">ID de Telegram (opcional)</label>
-                            <input type="text" class="form-control" id="telegram_id" name="telegram_id">
-                            <div class="form-text">Si ya usas nuestro bot de Telegram, ingresa tu ID para vincular tu cuenta.</div>
+                            <label for="telegram_id" class="form-label">ID de Telegram {% if invitation %}(requerido){% else %}(opcional){% endif %}</label>
+                            <input type="text" class="form-control" id="telegram_id" name="telegram_id" {% if invitation %}required{% endif %}>
+                            <div class="form-text">
+                                {% if invitation %}
+                                Necesitas proporcionar tu ID de Telegram para unirte al grupo.
+                                {% else %}
+                                Si ya usas nuestro bot de Telegram, ingresa tu ID para vincular tu cuenta.
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Registrarse</button>
+                            <button type="submit" class="btn btn-primary">{% if invitation %}Completar Registro{% else %}Registrarse{% endif %}</button>
                         </div>
                     </form>
+                    {% if not invitation %}
                     <div class="mt-3 text-center">
                         <p>¿Ya tienes una cuenta? <a href="{{ url_for('login') }}">Inicia sesión aquí</a></p>
                     </div>
+                    {% endif %}
                 </div>
             </div>
         </div>

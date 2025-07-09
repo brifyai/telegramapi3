@@ -1,0 +1,33 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>Mi Contenido Personal</h1>
+    
+    <div class="storage-info mb-4">
+        <h4>Almacenamiento Utilizado</h4>
+        <div class="progress">
+            <div class="progress-bar" style="width: {{ (storage_used / storage_limit * 100) if storage_limit > 0 else 0 }}%">
+                {{ storage_used|round(2) }} GB / {{ storage_limit }} GB
+            </div>
+        </div>
+    </div>
+    
+    <div class="content-list">
+        {% for item in contents %}
+        <div class="content-item">
+            <div class="content-info">
+                <h5>{{ item.content_data.filename if item.content_data and item.content_data.filename else item.file }}</h5>
+                <p>Tamaño: {{ (item.file_size_bytes|float / 1024 / 1024)|round(2) }} MB</p>
+                <p>Subido: {{ item.created_at|datetime }}</p>
+            </div>
+            <div class="content-actions">
+                <a href="{{ item.content_data.file_url if item.content_data and item.content_data.file_url else item.file_path }}" class="btn btn-primary" target="_blank">Ver</a>
+                <a href="{{ item.content_data.file_url if item.content_data and item.content_data.file_url else item.file_path }}" class="btn btn-secondary" download>Descargar</a>
+                <button onclick="deleteContent('{{ item.id }}')" class="btn btn-danger">Eliminar</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

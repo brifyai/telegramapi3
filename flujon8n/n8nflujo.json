@@ -1,5 +1,5 @@
 {
-  "name": "My workflow",
+  "name": "Telegram api Admin",
   "nodes": [
     {
       "parameters": {
@@ -10,10 +10,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        -2020,
-        540
+        -2320,
+        60
       ],
-      "id": "3561fe88-4fca-43e2-877b-9d95852d52d4",
+      "id": "bbdca777-7401-4cb2-b373-0061944af09d",
       "name": "Webhook Trigger",
       "webhookId": "4ff9e888-43b0-41d7-8726-6b7d60274d1c"
     },
@@ -31,83 +31,33 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [
-        -1380,
-        540
+        -1540,
+        80
       ],
-      "id": "1d7c5c40-42ae-44e8-8987-bbb8e9725799",
+      "id": "a2ea9288-8466-4810-a3e5-d935eb4bdf6c",
       "name": "If (Query or Document)"
-    },
-    {
-      "parameters": {
-        "functionCode": "// Preparar el contexto para el agente de IA\n\n// Inicializar variables\nconst itemsArray = $input.all() || [];\nlet telegram_id = null;\nlet content = \"\";\nlet action = \"query\";\n\n// Obtener el telegram_id del input original\nif (itemsArray && itemsArray.length > 0 && itemsArray[0].json) {\n  // Intentar obtener telegram_id de diferentes ubicaciones posibles\n  if (itemsArray[0].json.telegram_id) {\n    telegram_id = itemsArray[0].json.telegram_id;\n  } else if (itemsArray[0].json.body && itemsArray[0].json.body.telegram_id) {\n    telegram_id = itemsArray[0].json.body.telegram_id;\n  }\n  \n  // Determinar la acción\n  if (itemsArray[0].json.action) {\n    action = itemsArray[0].json.action;\n  }\n}\n\n// Preparar el contexto según el tipo de entrada\nif (action === \"document_added\" || action === \"image_added\") {\n  // Si acabamos de procesar un documento o imagen\n  if (itemsArray[0].json.content) {\n    content = `Contenido extraído de ${itemsArray[0].json.type === \"document\" ? \"documento\" : \"imagen\"}: ${itemsArray[0].json.filename}\\n\\n${itemsArray[0].json.content}`;\n  }\n  \n  return {\n    context: content,\n    query: `Por favor, resume la información principal de este ${itemsArray[0].json.type === \"document\" ? \"documento\" : \"imagen\"}.`,\n    telegram_id: telegram_id,\n    action: action\n  };\n} else {\n  // Si es una consulta normal, mantener el comportamiento original\n  // Obtener documentos si existen\n  let documents = [];\n  if (itemsArray && itemsArray.length > 0 && itemsArray[0].json) {\n    // NUEVO: Verificar si hay documentos en el campo documents\n    if (itemsArray[0].json.documents && Array.isArray(itemsArray[0].json.documents)) {\n      documents = itemsArray[0].json.documents;\n      console.log(\"Documentos encontrados en el campo documents:\", documents.length);\n    }\n    // Si hay un array de documentos, usarlo\n    else if (Array.isArray(itemsArray[0].json)) {\n      documents = itemsArray[0].json;\n    }\n    // Si es un objeto con propiedades de documento, convertirlo en array\n    else if (itemsArray[0].json.filename && itemsArray[0].json.content) {\n      documents = [itemsArray[0].json];\n    }\n    // Si es un resultado de búsqueda vectorial\n    else if (itemsArray[0].json.data && Array.isArray(itemsArray[0].json.data)) {\n      documents = itemsArray[0].json.data;\n    }\n  }\n\n  // NUEVO: Verificar si hay un documento seleccionado específicamente\n  const hasSelectedContext = itemsArray[0].json.has_selected_context === true;\n\n  // Preparar el contexto\n  let context = \"\";\n\n  // Si hay documentos, procesarlos\n  if (documents.length > 0) {\n    // Si hay un documento seleccionado, usar solo ese\n    const docsToUse = hasSelectedContext ? documents.slice(0, 1) : documents.slice(0, 5);\n    \n    // Construir el contexto con los documentos\n    docsToUse.forEach(doc => {\n      if (doc && doc.content) {\n        const filename = doc.filename || doc.title || doc.name || \"Documento\";\n        context += `Documento: ${filename}\\n${doc.content}\\n\\n`;\n      }\n    });\n    \n    // Si hay un documento seleccionado, agregar una nota\n    if (hasSelectedContext) {\n      const docName = documents[0].filename || documents[0].title || documents[0].name || \"seleccionado\";\n      context = `[Usando documento seleccionado: ${docName}]\\n\\n${context}`;\n    }\n  } else {\n    context = \"No hay documentos disponibles para proporcionar contexto.\";\n  }\n\n  // Obtener el texto de la consulta\n  let queryText = \"\";\n  if (itemsArray && itemsArray.length > 0 && itemsArray[0].json) {\n    if (itemsArray[0].json.content) {\n      queryText = itemsArray[0].json.content;\n    } else if (itemsArray[0].json.body && itemsArray[0].json.body.text) {\n      queryText = itemsArray[0].json.body.text;\n    } else if (itemsArray[0].json.text) {\n      queryText = itemsArray[0].json.text;\n    } else if (itemsArray[0].json.query) {\n      queryText = itemsArray[0].json.query;\n    }\n  }\n\n  // Devolver el contexto preparado con telegram_id preservado\n  return {\n    context: context,\n    query: queryText || \"\",\n    telegram_id: telegram_id,\n    action: action,\n    has_selected_context: hasSelectedContext\n  };\n}"
-      },
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [
-        -300,
-        440
-      ],
-      "id": "28458865-e60f-4ccb-a12f-78a8d4c6e51d",
-      "name": "Prepare Context"
-    },
-    {
-      "parameters": {
-        "promptType": "define",
-        "text": "={{$json.query}}",
-        "options": {
-          "systemMessage": "=Eres un asistente de IA que ayuda a responder preguntas.\n{% if $json.context %}\nUtiliza el siguiente contexto para responder a la consulta del usuario:\n{{ $json.context }}\n{% else %}\nResponde basándote en tu conocimiento general.\n{% endif %}\n\nConsulta del usuario: {{ $json.text || $json.query }}\n\nIMPORTANTE: Omite la generaciónde json a menos que el usuario te lo solicite."
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "typeVersion": 1.9,
-      "position": [
-        -40,
-        400
-      ],
-      "id": "edd2e14d-67a9-4eaf-98f1-ae828c085a95",
-      "name": "AI Agent",
-      "alwaysOutputData": true,
-      "executeOnce": false,
-      "retryOnFail": false
     },
     {
       "parameters": {
         "chatId": "={{ $('Edit Fields').item.json.telegramId }}",
         "text": "={{ $json.output }}",
-        "additionalFields": {}
+        "additionalFields": {
+          "appendAttribution": false
+        }
       },
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        260,
-        400
+        220,
+        -160
       ],
-      "id": "fd46ed1e-1512-47f8-83d1-53b73d13a360",
+      "id": "4a683caa-09e6-4c58-99c1-cd7196bba23d",
       "name": "Telegram Response",
       "webhookId": "52ef0ad7-95c8-43e7-8cc1-0e0d6a3c3abf",
       "credentials": {
         "telegramApi": {
-          "id": "bYlaNU9AutFJPON3",
+          "id": "F6RzDj0qZKFJhvYm",
           "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
-      "typeVersion": 1,
-      "position": [
-        0,
-        0
-      ],
-      "id": "6e15a3c1-25cd-4aad-acad-230226f9182f",
-      "name": "DeepSeek Chat Model",
-      "credentials": {
-        "deepSeekApi": {
-          "id": "H0VrUt2Qtc1hGNfr",
-          "name": "DeepSeek account"
         }
       }
     },
@@ -119,24 +69,11 @@
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
       "typeVersion": 1.3,
       "position": [
-        60,
-        600
+        -600,
+        120
       ],
-      "id": "600221b6-7fe4-4822-ac8f-af1e62b8d8a4",
+      "id": "9f45763e-18cb-484d-bf4d-a06759b34356",
       "name": "Memory"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Normalizar los datos de entrada y detectar tipo de mensaje\nconst inputData = $input.item.json;\n\n// Determinar el tipo de mensaje\nlet messageType = \"text\";\nlet content = \"\";\n\n// Verificar si es una imagen\nif (inputData.message && inputData.message.photo) {\n  messageType = \"image\";\n  // Obtener el file_id de la imagen (la última es la de mayor resolución)\n  const photos = inputData.message.photo;\n  content = photos[photos.length - 1].file_id;\n}\n// Verificar si es un documento\nelse if (inputData.message && inputData.message.document) {\n  messageType = \"document\";\n  content = inputData.message.document.file_id;\n}\n// Si es texto\nelse if (inputData.message && inputData.message.text) {\n  content = inputData.message.text;\n}\n// Si viene de tu webhook personalizado\nelse if (inputData.body && inputData.body.text) {\n  content = inputData.body.text;\n}\n\n// Asegurarse de que telegram_id existe\nlet telegram_id = null;\nif (inputData.body && inputData.body.telegram_id) {\n  telegram_id = inputData.body.telegram_id;\n} else if (inputData.message && inputData.message.from) {\n  telegram_id = inputData.message.from.id;\n}\n\n// Determinar la acción\nlet action = \"query\";\nif (messageType === \"document\") {\n  action = \"document_added\";\n} else if (messageType === \"image\") {\n  action = \"image_added\";\n} else if (inputData.action) {\n  action = inputData.action;\n}\n\nreturn { \n  json: {\n    messageType,\n    content,\n    telegram_id,\n    action,\n    body: {\n      telegram_id,\n      text: content,\n      type: messageType,\n      action\n    },\n    original: inputData\n  }\n};"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -1860,
-        520
-      ],
-      "id": "8ceb3a42-2251-4c2b-99ef-b02b94cf6c0b",
-      "name": "Code"
     },
     {
       "parameters": {
@@ -166,10 +103,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1180,
-        300
+        -1360,
+        -40
       ],
-      "id": "8763dd6d-fb6c-4609-8de7-65b90d2c2810",
+      "id": "0eaf8d9a-794e-4cfb-a5aa-d07e37847a8b",
       "name": "If"
     },
     {
@@ -181,6 +118,12 @@
               "name": "telegramId",
               "value": "={{$json.body.telegram_id}}",
               "type": "string"
+            },
+            {
+              "id": "5a8ea78c-9fc9-4373-8a18-561c3699345c",
+              "name": "question",
+              "value": "={{ $json.original.body.question }}",
+              "type": "string"
             }
           ]
         },
@@ -190,10 +133,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -1620,
-        520
+        -1780,
+        60
       ],
-      "id": "989d3fe7-5be9-4229-a211-f49246ed75a2",
+      "id": "0e1eff4d-10ac-47bf-8f0d-79a995f5bd36",
       "name": "Edit Fields"
     },
     {
@@ -209,7 +152,7 @@
             {
               "id": "b1e28091-70a2-45f2-ac7e-347ea648f6f7",
               "leftValue": "={{ $json.original.body.action }}",
-              "rightValue": "=document_added",
+              "rightValue": "=process_image",
               "operator": {
                 "type": "string",
                 "operation": "equals",
@@ -224,11 +167,26 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1180,
-        840
+        -1340,
+        360
       ],
-      "id": "52f42371-72f0-4a1d-9ad0-91c503dfeccc",
-      "name": "If Document"
+      "id": "5c83cfee-0927-4ec8-9104-1363d249b29a",
+      "name": "If Image"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        160
+      ],
+      "id": "b1a4c6c9-bbee-4ef8-a709-2675319f768b",
+      "name": "Extracto1",
+      "alwaysOutputData": true
     },
     {
       "parameters": {
@@ -243,7 +201,7 @@
             {
               "id": "b1e28091-70a2-45f2-ac7e-347ea648f6f7",
               "leftValue": "={{ $json.original.body.action }}",
-              "rightValue": "=image_added",
+              "rightValue": "=process_document",
               "operator": {
                 "type": "string",
                 "operation": "equals",
@@ -258,161 +216,242 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        -1160,
-        1120
+        -1360,
+        100
       ],
-      "id": "e37e5363-7e3a-4478-84d7-e41e711e56eb",
-      "name": "If Image"
+      "id": "e8df9b04-a9a4-431a-a766-6906e40a9871",
+      "name": "documentoful"
     },
     {
       "parameters": {
-        "chatId": "={{ $('Edit Fields').item.json.telegramId }}",
-        "text": "{{ $json.body.text}}",
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        -960,
-        840
-      ],
-      "id": "fee87e1c-3dfd-46ec-b61f-809128adbfb7",
-      "name": "Download Document",
-      "webhookId": "4510ff94-c9e1-40a4-a83b-4cd42baa16cb",
-      "credentials": {
-        "telegramApi": {
-          "id": "bYlaNU9AutFJPON3",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "chatId": "={{ $('Edit Fields').item.json.telegramId }}",
-        "text": "={{ $json.body.text}}",
-        "additionalFields": {}
-      },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [
-        -960,
-        1040
-      ],
-      "id": "fd3cad05-245b-44e8-bf77-d75127f9cc4b",
-      "name": "Download Image",
-      "webhookId": "4510ff94-c9e1-40a4-a83b-4cd42baa16cc",
-      "credentials": {
-        "telegramApi": {
-          "id": "bYlaNU9AutFJPON3",
-          "name": "Telegram account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const inputData = $input.item.json;\nlet documentContent = \"\";\nlet documentName = \"\";\n\nif (inputData.fileName) {\n  documentName = inputData.fileName;\n}\n\nif (inputData.fileContent) {\n  // Si es un PDF, usar una biblioteca de extracción de texto\n  // En un entorno real, necesitarías instalar pdfjs-dist u otra biblioteca\n  // Este es un ejemplo conceptual\n  if (documentName.toLowerCase().endsWith('.pdf')) {\n    // Aquí iría el código para extraer texto del PDF\n    documentContent = \"[Texto extraído del PDF]\";\n  } else {\n    // Para otros tipos de documentos, intentar convertir a texto\n    documentContent = inputData.fileContent.toString('utf-8');\n  }\n}\n\nreturn {\n  json: {\n    filename: documentName,\n    content: documentContent,\n    telegram_id: inputData.telegram_id || inputData.body.telegram_id,\n    type: \"document\"\n  }\n};"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -780,
-        840
-      ],
-      "id": "ce983558-06e4-4a86-95be-30b5a83e8ad5",
-      "name": "Extract Document Text"
-    },
-    {
-      "parameters": {
-        "jsCode": "const inputData = $input.item.json;\nlet imageContent = \"\";\nlet imageName = \"imagen_\" + Date.now() + \".jpg\";\n\nif (inputData.fileName) {\n  imageName = inputData.fileName;\n}\n\n// En un entorno real, aquí conectarías con un servicio de OCR como:\n// - Tesseract.js (librería local)\n// - Google Cloud Vision API\n// - Microsoft Azure Computer Vision\n// - Amazon Textract\n\n// Ejemplo conceptual (en producción necesitarías implementar la llamada real al API)\nimageContent = \"[Aquí iría el texto extraído de la imagen por OCR]\";\n\nreturn {\n  json: {\n    filename: imageName,\n    content: imageContent,\n    telegram_id: inputData.telegram_id || inputData.body.telegram_id,\n    type: \"image\"\n  }\n};"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -780,
-        1040
-      ],
-      "id": "0ca5b54b-0cbb-4d51-81f2-8eb52bc582ac",
-      "name": "Extract Image Text (OCR)"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://leoyybfbnjajkktprhro.supabase.co/rest/v1/documents",
+        "url": "={{ $json.original.body.file_path }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1080,
+        20
+      ],
+      "id": "f430eb70-4498-4325-ba7e-ffb1d0f976d2",
+      "name": "nono_descarga",
+      "alwaysOutputData": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HcSQeZ8R6aCG7Arl",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "={{ $json.mensajeia }}",
+        "options": {
+          "systemMessage": "=**INSTRUCCIÓN CRÍTICA: Para CUALQUIER pregunta sobre leyes, DEBES usar la herramienta HTTP Request1 antes de responder. Es OBLIGATORIO.**\n\nEres un asistente legal experto en la legislación de Chile. Tu ÚNICA función es buscar leyes usando la herramienta HTTP Request disponible.\n\n**Contexto del Documento:**\n`Contexto: {{ $json.text || $json.context || 'No hay contexto específico disponible' }}`\n\n**REGLAS OBLIGATORIAS:**\n\n1. **SIEMPRE USA LA HERRAMIENTA:** Para CUALQUIER pregunta sobre leyes, decretos, códigos o términos legales, DEBES usar la herramienta HTTP Request. NO respondas sin usarla.\n\n2. **Detección automática:** Si el usuario menciona palabras como:\n   - \"ley\", \"decreto\", \"código\", \"artículo\"\n   - \"busca\", \"encuentra\", \"dame\", \"muestra\"\n   - Cualquier término legal específico\n   → USA LA HERRAMIENTA INMEDIATAMENTE\n\n3. **Parámetros de la herramienta:**\n   - **opt**: Usa \"61\" si el usuario pide cantidad específica (ej: \"5 leyes\"), sino usa \"60\"\n   - **cadena**: Extrae el término de búsqueda de la pregunta + contexto\n   - **cantidad**: Solo si el usuario especifica número (ej: \"5\", \"10\")\n\n4. **Ejemplos que REQUIEREN herramienta:**\n   - \"Dame 5 leyes sobre campesinos\" → opt=61, cadena=campesinos, cantidad=5\n   - \"Busca ley de arriendo\" → opt=60, cadena=ley de arriendo\n   - \"Qué dice sobre derechos de agua\" → opt=60, cadena=derechos de agua\n\n5. **Formato de respuesta:** Nunca muestres XML. Presenta resultados en formato amigable.\n\n**Ejemplos de flujo:**\n\n**Ejemplo 1 (Sin Contexto):**\n- Usuario: \"Hola, me gustaría saber sobre la ley de arriendo, los 3 artículos más importantes\"\n- Tu pensamiento: \"Ok, no hay contexto. El `terminoBusqueda` es 'ley de arriendo'. El usuario pide 3 resultados, así que `cantidadResultados` es 3 y `opcionBusqueda` es '61'.\"\n- Tú usas la herramienta, recibes el XML, lo lees y respondes con el resumen.\n\n**Ejemplo 2 (Con Contexto):**\n- Contexto del Documento: \"El presente informe analiza la escasez hídrica y los derechos de aprovechamiento de aguas para la agricultura...\"\n- Usuario: \"Encuéntrame 2 leyes relacionadas con esto.\"\n- Tu pensamiento: \"Ok, el usuario dice 'esto'. Reviso el `Contexto`. Habla de 'derechos de aprovechamiento de aguas para la agricultura'. Ese es mi `terminoBusqueda`. El usuario pide 2 resultados, así que `cantidadResultados` es 2 y `opcionBusqueda` es '61'.\"\n- Tú usas la herramienta, recibes el XML, lo lees y respondes con el resumen.\n\n\n**IMPORTANTE:** Si no usas la herramienta cuando debes, estás fallando en tu función principal.\n**FLUJO OBLIGATORIO:**\n1. Usuario hace pregunta legal → USAR HERRAMIENTA\n2. Recibir XML → Procesar información\n3. Responder en formato amigable\n\n**NUNCA respondas sobre leyes sin usar la herramienta HTTP Request1 primero.**\n\n**Frases que SIEMPRE activan la herramienta:**\n- \"Dame X leyes sobre...\"\n- \"Busca información sobre...\"\n- \"Qué dice la ley sobre...\"\n- \"Encuentra decretos de...\"\n- Cualquier mención de términos legales específicos"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -760,
+        -140
+      ],
+      "id": "d2806862-979c-4b27-b196-801124252359",
+      "name": "AI Agent1",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        -740,
+        40
+      ],
+      "id": "01e728e0-79c9-4994-b83b-c2b55d26c0d2",
+      "name": "DeepSeek Chat Model",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "1TR7z1BBTyDQE4w2",
+          "name": "DeepSeek account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
             {
-              "name": "content",
-              "value": "={{ $json.content }}"
+              "id": "711cd063-26fe-4622-8165-b698b529210e",
+              "name": "mensajeia",
+              "value": "={{ $json.content || $('Edit Fields').item.json.original.body.question }}",
+              "type": "string"
             },
             {
-              "name": "filename",
-              "value": "={{ $json.filename }}"
-            },
-            {
-              "name": "user_id",
-              "value": "={{ $json.telegram_id }}"
-            },
-            {
-              "name": "type",
-              "value": "={{ $json.type }}"
+              "id": "1a4403cc-b2b7-49a0-927f-ad197e106136",
+              "name": "text",
+              "value": "={{$json.text || $json.candidates[0].content.parts[0].text}}",
+              "type": "string"
             }
           ]
         },
         "options": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [
-        -600,
-        620
+        -1060,
+        -140
       ],
-      "id": "9706c008-c69c-4fb6-8487-5d0ea1237fb6",
-      "name": "Save to Supabase",
+      "id": "daa11508-220d-43d4-b4cb-36f4d17ff63b",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Utiliza esta herramienta para buscar leyes, decretos o cualquier término en la base de datos oficial de Ley Chile. Es la mejor opción para responder preguntas sobre la legislación chilena.",
+        "url": "https://www.leychile.cl/Consulta/obtxml",
+        "sendQuery": true,
+        "parametersQuery": {
+          "values": [
+            {
+              "name": "opt",
+              "valueProvider": "fieldValue",
+              "value": "={{ $json.opcionBusqueda }}"
+            },
+            {
+              "name": "cadena",
+              "valueProvider": "fieldValue",
+              "value": "={{ $json.terminoBusqueda }}"
+            },
+            {
+              "name": "cantidad",
+              "valueProvider": "fieldValue",
+              "value": "={{ $json.cantidadResultados }}"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -440,
+        0
+      ],
+      "id": "191420cf-30ec-4362-b39f-015e0d3daeb6",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.original.body.file_path }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1040,
+        400
+      ],
+      "id": "9b18c2cb-6bb9-44ad-9965-5fcbff493cfb",
+      "name": "descarga_imagen",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"Describe detalladamente todo lo que ves en esta imagen. Extrae literalmente cualquier texto visible, identifica objetos, personas, vehículos, edificios, señales, documentos, y cualquier elemento relevante. Si hay contenido legal (leyes, artículos, decretos), menciona los números y referencias exactas que aparecen. Proporciona solo hechos observables, sin hacer suposiciones ni solicitar información adicional. Sé descriptivo y exhaustivo en tu análisis visual.\"\n        },\n        {\n          \"inline_data\": {\n            \"mime_type\": \"image/jpeg\",\n            \"data\": \"{{ $('Move64').first().json.data }}\"\n          }\n        }\n      ]\n    }\n  ]\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -640,
+        400
+      ],
+      "id": "77460722-d8e1-410a-8f26-25aef80a2f25",
+      "name": "HTTP Request",
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "EU4fxUCFfAPGmWGz",
-          "name": "Header Auth account 3"
+        "googlePalmApi": {
+          "id": "4159LyeN028ihYUR",
+          "name": "Telegram Gemini api"
         }
       }
     },
     {
       "parameters": {
-        "chatId": "={{ $json.body.telegram_id }}",
-        "text": "Tu documento ha sido añadido correctamente. Ahora puedes hacer preguntas sobre él.",
-        "additionalFields": {}
+        "operation": "binaryToPropery",
+        "options": {}
       },
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
       "position": [
-        -300,
-        840
+        -860,
+        400
       ],
-      "id": "111690ab-e6af-4fdc-839b-afc7e98c0809",
-      "name": "Telegram Confirmation",
-      "webhookId": "4510ff94-c9e1-40a4-a83b-4cd42baa16ca",
-      "credentials": {
-        "telegramApi": {
-          "id": "bYlaNU9AutFJPON3",
-          "name": "Telegram account"
-        }
-      }
+      "id": "adb56949-2474-48fb-8c05-2670c04519d0",
+      "name": "Move64"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalizar los datos de entrada y detectar tipo de mensaje\nconst inputData = $input.item.json;\n\n// Determinar el tipo de mensaje\nlet messageType = \"text\";\nlet content = \"\";\n\n// Verificar si es una imagen\nif (inputData.message && inputData.message.photo) {\n  messageType = \"image\";\n  // Obtener el file_id de la imagen (la última es la de mayor resolución)\n  const photos = inputData.message.photo;\n  content = photos[photos.length - 1].file_id;\n}\n// Verificar si es un documento\nelse if (inputData.message && inputData.message.document) {\n  messageType = \"document\";\n  content = inputData.message.document.file_id;\n}\n// Si es texto\nelse if (inputData.message && inputData.message.text) {\n  content = inputData.message.text;\n}\n// Si viene de tu webhook personalizado\nelse if (inputData.body && inputData.body.text) {\n  content = inputData.body.text;\n}\n\n// Asegurarse de que telegram_id existe\nlet telegram_id = null;\nif (inputData.body && inputData.body.telegram_id) {\n  telegram_id = inputData.body.telegram_id;\n} else if (inputData.message && inputData.message.from) {\n  telegram_id = inputData.message.from.id;\n}\n\n// Determinar la acción\nlet action = \"query\";\nif (messageType === \"document\") {\n  action = \"document_added\";\n} else if (messageType === \"image\") {\n  action = \"image_added\";\n} else if (inputData.action) {\n  action = inputData.action;\n}\n\nreturn { \n  json: {\n    messageType,\n    content,\n    telegram_id,\n    action,\n    body: {\n      telegram_id,\n      text: content,\n      type: messageType,\n      action\n    },\n    original: inputData\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2180,
+        60
+      ],
+      "id": "635d43e3-57f3-4e32-9a4e-0cd62f8e8f77",
+      "name": "Code"
     }
   ],
   "pinData": {
     "Webhook Trigger": [
       {
         "json": {
-          "name": "First item",
-          "code": 1
-        }
-      },
-      {
-        "json": {
-          "name": "Second item",
-          "code": 2
+          "headers": {
+            "host": "n8n-master.captain.aintelligence.cl",
+            "x-real-ip": "201.215.127.161",
+            "x-forwarded-for": "201.215.127.161",
+            "x-forwarded-proto": "https",
+            "connection": "upgrade",
+            "content-length": "469",
+            "user-agent": "python-requests/2.32.3",
+            "accept-encoding": "gzip, deflate",
+            "accept": "*/*",
+            "content-type": "application/json"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "telegram_id": 1151207547,
+            "action": "process_image",
+            "document_id": "948654bd-a851-4fe1-a379-5e0f82176cb4",
+            "group_id": "e7dcfc0f-4c3d-4e1b-940f-cb48a3872caf",
+            "file_path": "https://leoyybfbnjajkktprhro.supabase.co/storage/v1/object/public/telegrambucket/groups/e7dcfc0f-4c3d-4e1b-940f-cb48a3872caf/Kaksieiwiasn.jpg",
+            "filename": "Kaksieiwiasn.jpg",
+            "custom_name": "Kaksieiwiasn",
+            "content_type": "image",
+            "question": "Está la camioneta infringiendo alguna ley"
+          },
+          "webhookUrl": "https://n8n-master.captain.aintelligence.cl/webhook/telegram",
+          "executionMode": "production"
         }
       }
     ]
@@ -440,25 +479,98 @@
         ],
         [
           {
-            "node": "If Document",
+            "node": "documentoful",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Prepare Context": {
+    "Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
       "main": [
         [
           {
-            "node": "AI Agent",
+            "node": "Edit Fields1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI Agent": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If (Query or Document)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Image": {
+      "main": [
+        [
+          {
+            "node": "descarga_imagen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extracto1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "documentoful": {
+      "main": [
+        [
+          {
+            "node": "nono_descarga",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nono_descarga": {
+      "main": [
+        [
+          {
+            "node": "Extracto1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
       "main": [
         [
           {
@@ -473,19 +585,63 @@
       "ai_languageModel": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Memory": {
-      "ai_memory": [
+    "Edit Fields1": {
+      "main": [
         [
           {
-            "node": "AI Agent",
-            "type": "ai_memory",
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "descarga_imagen": {
+      "main": [
+        [
+          {
+            "node": "Move64",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move64": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
             "index": 0
           }
         ]
@@ -501,129 +657,17 @@
           }
         ]
       ]
-    },
-    "If": {
-      "main": [
-        [
-          {
-            "node": "Prepare Context",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
-    "Edit Fields": {
-      "main": [
-        [
-          {
-            "node": "If (Query or Document)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Document": {
-      "main": [
-        [
-          {
-            "node": "Download Document",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "If Image",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "If Image": {
-      "main": [
-        [
-          {
-            "node": "Download Image",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Download Document": {
-      "main": [
-        [
-          {
-            "node": "Extract Document Text",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Download Image": {
-      "main": [
-        [
-          {
-            "node": "Extract Image Text (OCR)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract Document Text": {
-      "main": [
-        [
-          {
-            "node": "Save to Supabase",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract Image Text (OCR)": {
-      "main": [
-        [
-          {
-            "node": "Save to Supabase",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Save to Supabase": {
-      "main": [
-        [
-          {
-            "node": "Telegram Confirmation",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Prepare Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "cf13cd23-0978-4eb8-9dbf-d7a65c3c7ead",
+  "versionId": "e1b65e1e-6ef2-4ff8-8465-4c3fcf987506",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "09174c4bf7cfdf5b1a0e8253eb8fbbda0b3ca78cea61811605f595962383e581"
+    "instanceId": "a502742c5a027e62d4303a7e7a933c28de972b345bde35a45c53680990fc04b8"
   },
-  "id": "37x3tx551xJhrazt",
+  "id": "FEvO0VGbMtyydh8Z",
   "tags": []
 }

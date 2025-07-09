@@ -54,19 +54,17 @@
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0">Almacenamiento</h5>
                 </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <h6>Espacio utilizado: {{ storage_used|round(2) }} GB de {{ storage_limit }} GB</h6>
-                        <div class="progress">
-                            {% set percentage = (storage_used / storage_limit * 100) if storage_limit > 0 else 0 %}
-                            <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%" 
-                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
-                                {{ percentage|round }}%
-                            </div>
-                        </div>
-                    </div>
-                    <p>Puedes subir archivos a través de nuestro bot de Telegram.</p>
-                </div>
+<div class="card-body">
+    <h5>Almacenamiento</h5>
+    <div class="progress mb-3">
+        {% set percentage = (storage_used / storage_limit * 100) if storage_limit > 0 else 0 %}
+        <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%" 
+             aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+            {{ percentage|round }}%
+        </div>
+    </div>
+    <p>Espacio utilizado: {{ storage_used|round(2) }} MB de {{ storage_limit|round(2) }} MB</p>
+</div>
             </div>
         </div>
     </div>
