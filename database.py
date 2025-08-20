@@ -10,7 +10,15 @@ from dotenv import load_dotenv
 import logging
 import tempfile
 from google_drive_service import GoogleDriveService
-from embeddings_service import EmbeddingsService
+
+# Importación opcional de EmbeddingsService
+try:
+    from embeddings_service import EmbeddingsService
+    EMBEDDINGS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: EmbeddingsService not available: {e}")
+    EmbeddingsService = None
+    EMBEDDINGS_AVAILABLE = False
 
 load_dotenv()
 logging.basicConfig(
@@ -38,10 +46,14 @@ class UserDatabase:
             encryption_key=os.getenv('ENCRYPTION_KEY')
         )
         
-        self.embeddings_service = EmbeddingsService(
-            model_name=os.getenv('EMBEDDING_MODEL', 'all-MiniLM-L6-v2'),
-            use_openai=os.getenv('USE_OPENAI_EMBEDDINGS', 'false').lower() == 'true'
-        )
+        # Inicializar EmbeddingsService solo si está disponible
+        if EMBEDDINGS_AVAILABLE:
+            self.embeddings_service = EmbeddingsService(
+                model_name=os.getenv('EMBEDDING_MODEL', 'all-MiniLM-L6-v2'),
+                use_openai=os.getenv('USE_OPENAI_EMBEDDINGS', 'false').lower() == 'true'
+            )
+        else:
+            self.embeddings_service = None
     
     def load_users(self):
         """Cargar usuarios desde el archivo JSON (para compatibilidad)"""
@@ -771,18 +783,25 @@ class UserDatabase:
             
             # 2. Procesar y extraer texto del archivo
             logging.info(f"Procesando contenido del archivo {file_name}...")
-            embedding_result = self.embeddings_service.generate_embedding_from_file(
-                temp_file_path, content_type
-            )
             
-            text_content = embedding_result['text']
-            embedding = embedding_result['embedding']
-            processing_metadata = embedding_result['metadata']
-            
-            # Validar embedding
-            if not self.embeddings_service.validate_embedding(embedding):
-                logging.warning(f"Embedding inválido para {file_name}, usando embedding de ceros")
-                embedding = self.embeddings_service._get_zero_embedding()
+            if self.embeddings_service:
+                embedding_result = self.embeddings_service.generate_embedding_from_file(
+                    temp_file_path, content_type
+                )
+                
+                text_content = embedding_result['text']
+                embedding = embedding_result['embedding']
+                processing_metadata = embedding_result['metadata']
+                
+                # Validar embedding
+                if not self.embeddings_service.validate_embedding(embedding):
+                    logging.warning(f"Embedding inválido para {file_name}, usando embedding de ceros")
+                    embedding = self.embeddings_service._get_zero_embedding()
+            else:
+                # Si no hay servicio de embeddings, usar valores por defecto
+                text_content = f"Archivo: {file_name}"
+                embedding = None
+                processing_metadata = {"warning": "EmbeddingsService no disponible"}
             
             # 3. Preparar metadata completa
             metadata = {
@@ -1189,6 +1208,10 @@ class UserDatabase:
     
     def search_documents_by_similarity(self, user_id, query_text, threshold=0.7, limit=5):
         """Buscar documentos similares usando embeddings vectoriales"""
+        # Si no hay servicio de embeddings, retornar documentos básicos
+        if not self.embeddings_service:
+            return self.get_user_documents(user_id, limit)
+            
         headers = self._get_supabase_headers()
         
         try:
@@ -1253,14 +1276,17 @@ class UserDatabase:
                         })
             
             # Usar el servicio de embeddings para encontrar documentos similares
-            similar_docs = self.embeddings_service.find_similar_documents(
-                query_embedding=query_embedding,
-                document_embeddings=document_embeddings,
-                threshold=threshold,
-                limit=limit
-            )
-            
-            return True, similar_docs
+            if self.embeddings_service:
+                similar_docs = self.embeddings_service.find_similar_documents(
+                    query_embedding=query_embedding,
+                    document_embeddings=document_embeddings,
+                    threshold=threshold,
+                    limit=limit
+                )
+                return True, similar_docs
+            else:
+                # Si no hay servicio de embeddings, retornar todos los documentos
+                return True, [doc for doc in document_embeddings[:limit]]
             
         except Exception as e:
             logging.error(f"Error en búsqueda por similaridad: {e}")
@@ -1359,18 +1385,24 @@ class UserDatabase:
                 content_type = self._determine_content_type(file_name, mime_type)
                 
                 # Procesar y extraer texto del archivo
-                embedding_result = self.embeddings_service.generate_embedding_from_file(
-                    temp_file_path, content_type
-                )
-                
-                text_content = embedding_result['text']
-                embedding = embedding_result['embedding']
-                processing_metadata = embedding_result['metadata']
-                
-                # Validar embedding
-                if not self.embeddings_service.validate_embedding(embedding):
-                    logging.warning(f"Embedding inválido para {file_name}, usando embedding de ceros")
-                    embedding = self.embeddings_service._get_zero_embedding()
+                if self.embeddings_service:
+                    embedding_result = self.embeddings_service.generate_embedding_from_file(
+                        temp_file_path, content_type
+                    )
+                    
+                    text_content = embedding_result['text']
+                    embedding = embedding_result['embedding']
+                    processing_metadata = embedding_result['metadata']
+                    
+                    # Validar embedding
+                    if not self.embeddings_service.validate_embedding(embedding):
+                        logging.warning(f"Embedding inválido para {file_name}, usando embedding de ceros")
+                        embedding = self.embeddings_service._get_zero_embedding()
+                else:
+                    # Si no hay servicio de embeddings, usar valores por defecto
+                    text_content = f"Archivo: {file_name}"
+                    embedding = None
+                    processing_metadata = {"warning": "EmbeddingsService no disponible"}
                 
                 # Preparar metadata
                 metadata = {
