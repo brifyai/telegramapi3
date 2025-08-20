@@ -1,0 +1,44 @@
+{
+  "name": "Telegram API Bot",
+  "description": "Bot de Telegram con interfaz web para gestión de contenido y planes de suscripción",
+  "repository": "https://github.com/tu-usuario/telegram-api",
+  "logo": "https://node-js-sample.herokuapp.com/node.png",
+  "keywords": ["python", "flask", "telegram", "bot", "supabase"],
+  "image": "heroku/python",
+  "env": {
+    "SUPABASE_URL": {
+      "description": "URL de tu proyecto Supabase",
+      "required": true
+    },
+    "SUPABASE_KEY": {
+      "description": "Clave de API de Supabase",
+      "required": true
+    },
+    "TELEGRAM_BOT_TOKEN": {
+      "description": "Token del bot de Telegram",
+      "required": true
+    },
+    "SECRET_KEY": {
+      "description": "Clave secreta para Flask",
+      "generator": "secret"
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "addons": [
+    "heroku-postgresql:mini"
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ]
+}

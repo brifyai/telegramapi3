@@ -27,3 +27,29 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+
+# Archivos específicos de Heroku
+.heroku/
+
+# Archivos de credenciales y tokens
+token.json
+credentials.json
+config.env
+
+# Archivos de usuarios locales
+users.json
+
+# Archivos de distribución
+dist/
+build/
+*.egg-info/
+
+# Archivos de pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Archivos de sistema
+*.pid
+*.seed
+*.pid.lock
