@@ -21,6 +21,25 @@
     "SECRET_KEY": {
       "description": "Clave secreta para Flask",
       "generator": "secret"
+    },
+    "ENCRYPTION_KEY": {
+      "description": "Clave de encriptación para datos sensibles",
+      "generator": "secret",
+      "required": false
+    },
+    "EMBEDDING_MODEL": {
+      "description": "Modelo de embeddings a usar",
+      "value": "all-MiniLM-L6-v2",
+      "required": false
+    },
+    "USE_OPENAI_EMBEDDINGS": {
+      "description": "Usar embeddings de OpenAI",
+      "value": "false",
+      "required": false
+    },
+    "LANDING_PAGE_URL": {
+      "description": "URL de la página de planes",
+      "required": false
     }
   },
   "formation": {
