@@ -1,12 +1,38 @@
-from database import UserDatabase
 import os
+import sys
 import secrets
 import requests
+import logging
 from datetime import datetime
 from dotenv import load_dotenv
-from bot import get_or_create_personal_group
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_login import LoginManager, login_required, current_user, UserMixin, login_user
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+
+logger = logging.getLogger(__name__)
+
+try:
+    from database import UserDatabase
+    logger.info("Database module imported successfully")
+except ImportError as e:
+    logger.error(f"Failed to import database module: {e}")
+    raise
+
+try:
+    from bot import get_or_create_personal_group
+    logger.info("Bot module imported successfully")
+except ImportError as e:
+    logger.warning(f"Bot module not available: {e}")
+    # Define a fallback function
+    def get_or_create_personal_group(user_id):
+        logger.warning("Bot functionality not available")
+        return None
 class User(UserMixin):
     def __init__(self, user_data):
         self.id = user_data['id']
@@ -25,7 +51,11 @@ load_dotenv()
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 
 app = Flask(__name__)
-app.secret_key = secrets.token_hex(16)  # Clave secreta aleatoria
+app.secret_key = os.getenv('SECRET_KEY', secrets.token_hex(16))
+
+logger.info(f"Flask app initialized with secret key: {'***' if app.secret_key else 'None'}")
+logger.info(f"Supabase URL configured: {'Yes' if SUPABASE_URL else 'No'}")
+
 # Agregar el filtro datetime
 @app.template_filter('datetime')
 def format_datetime(value, format='%Y-%m-%d %H:%M:%S'):
@@ -37,12 +67,19 @@ def format_datetime(value, format='%Y-%m-%d %H:%M:%S'):
         except ValueError:
             return value
     return value.strftime(format)
+
 # Inicializar Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-# Inicializar la base de datos
-db = UserDatabase()
+
+# Inicializar la base de datos con manejo de errores
+try:
+    db = UserDatabase()
+    logger.info("Database initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize database: {e}")
+    raise
 @login_manager.user_loader
 def load_user(user_id):
     user_data = db.get_user_by_id(user_id)
