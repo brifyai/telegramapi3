@@ -17,9 +17,12 @@ google-auth-httplib2==0.1.1
 google-api-python-client==2.108.0
 
 # Additional dependencies for Heroku
-python-telegram-bot==20.7
+# Downgraded python-telegram-bot to avoid httpx conflict with supabase
+python-telegram-bot==20.3
 supabase==2.0.2
 postgrest==0.13.0
+# Explicitly pin httpx to compatible version
+httpx>=0.24.0,<0.25.0
 
 # Embeddings and AI dependencies (optional)
 # sentence-transformers==2.2.2
